@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"open-sandbox/internal/api"
 	"open-sandbox/internal/api/handlers"
@@ -46,8 +47,12 @@ func main() {
 	handlers.RegisterCodeServerRoutes(router, os.Getenv("SANDBOX_CODESERVER_URL"))
 
 	server := &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:              addr,
+		Handler:           router,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	log.Printf("listening on %s", addr)
