@@ -20,10 +20,12 @@ go run ./cmd/server
 
 ```powershell
 docker build -t open-sandbox .
-docker run --rm -p 8080:8080 -v D:\Desktop\sandbox\open-sandbox\workspace:/workspace open-sandbox
+docker run --rm -p 8080:8080 -v <SANDBOX_WORKSPACE>:/workspace open-sandbox
 ```
 
 ## Environment
 
 - `SANDBOX_ADDR` sets the HTTP listen address (default `:8080`)
 - `SANDBOX_BROWSER_CDP` sets the CDP websocket address returned by the browser info API
+- `SANDBOX_ROOT` sets the base path for runtime artifacts
+- `SANDBOX_WORKSPACE` overrides the workspace path

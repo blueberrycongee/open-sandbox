@@ -40,7 +40,7 @@ go run ./cmd/server
 Docker (placeholder)
 ```
 docker build -t open-sandbox .
-docker run --rm -p 8080:8080 -v D:\Desktop\sandbox\open-sandbox\workspace:/workspace open-sandbox
+docker run --rm -p 8080:8080 -v <SANDBOX_WORKSPACE>:/workspace open-sandbox
 ```
 
 Ports
@@ -50,6 +50,11 @@ Ports
 Environment Variables
 ---------------------
 - `SANDBOX_ADDR` (default `:8080`)
+- `SANDBOX_ROOT` (base directory for runtime artifacts; defaults to repo root when available)
+- `SANDBOX_WORKSPACE` (absolute workspace path; defaults to `<SANDBOX_ROOT>/workspace`)
+- `SANDBOX_CACHE_ROOT` (defaults to `<SANDBOX_ROOT>/.cache`)
+- `SANDBOX_LOGS_ROOT` (defaults to `<SANDBOX_ROOT>/logs`)
+- `SANDBOX_BUILD_ROOT` (defaults to `<SANDBOX_ROOT>/build`)
 - `SANDBOX_BROWSER_BIN` (path to Chrome/Chromium binary)
 - `SANDBOX_BROWSER_CDP` (existing CDP websocket address; skips launching a new browser)
 - `SANDBOX_CDP_HOST` (default `127.0.0.1`)
@@ -62,7 +67,7 @@ Environment Variables
 
 Runtime Artifacts
 -----------------
-All cache, logs, and build outputs must live under `D:\Desktop\sandbox\open-sandbox`:
+All cache, logs, and build outputs must live under `SANDBOX_ROOT` (default `<repo_root>`). Example Windows defaults:
 - Cache: `D:\Desktop\sandbox\open-sandbox\.cache`
 - Logs: `D:\Desktop\sandbox\open-sandbox\logs`
 - Build outputs: `D:\Desktop\sandbox\open-sandbox\build`

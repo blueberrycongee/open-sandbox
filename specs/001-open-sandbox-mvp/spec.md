@@ -38,7 +38,7 @@ Users drive a headed browser via API and can visually take over via VNC for navi
 **Acceptance Scenarios**:
 
 1. **Given** browser is available, **When** navigate to `https://example.com`, **Then** return success and VNC shows the page.
-2. **Given** page is open, **When** capture screenshot to `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\screenshots\\example.png`, **Then** file exists and File API can read metadata. If running in container, the equivalent path is `/workspace/screenshots/example.png`.
+2. **Given** page is open, **When** capture screenshot to `<SANDBOX_WORKSPACE>/screenshots/example.png`, **Then** file exists and File API can read metadata. If running in container, the equivalent path is `/workspace/screenshots/example.png`.
 
 ---
 
@@ -53,7 +53,7 @@ Users use Shell, File, and Code execution to read/write/process files and verify
 **Acceptance Scenarios**:
 
 1. **Given** Shell API is available, **When** run `echo test`, **Then** stdout includes `test`.
-2. **Given** `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\output.txt` exists, **When** read via File API, **Then** return verifiable content. If running in container, the equivalent path is `/workspace/output.txt`.
+2. **Given** `<SANDBOX_WORKSPACE>/output.txt` exists, **When** read via File API, **Then** return verifiable content. If running in container, the equivalent path is `/workspace/output.txt`.
 
 ---
 
@@ -95,8 +95,8 @@ Users can reach Jupyter Lab and code-server via the unified entry.
 - **FR-009**: All APIs return a consistent structure (status/data/error or equivalent).
 - **FR-010**: Errors are traceable (error code/message/trace_id or equivalent).
 - **FR-011**: Auth off by default, with JWT toggle placeholder.
-- **FR-012**: Absolute paths only. Host workspace is `D:\\Desktop\\sandbox\\open-sandbox\\workspace` (create if missing).
-- **FR-013**: If a container is used, `D:\\Desktop\\sandbox\\open-sandbox\\workspace` must be mounted to `/workspace` and `/workspace` is used inside the container.
+- **FR-012**: Absolute paths only. Host workspace is configurable via `SANDBOX_WORKSPACE` (default `<repo_root>/workspace`, create if missing).
+- **FR-013**: If a container is used, the host workspace must be mounted to `/workspace` and `/workspace` is used inside the container.
 
 ### Non-Functional Requirements
 
@@ -118,16 +118,16 @@ Users can reach Jupyter Lab and code-server via the unified entry.
   - `http://localhost:8080/code-server/`
 - **SC-002**: End-to-end API flow with verifiable output:
   1) Open `https://example.com`
-  2) Save screenshot to `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\screenshots\\example.png`
+  2) Save screenshot to `<SANDBOX_WORKSPACE>/screenshots/example.png`
   3) File API reads screenshot metadata or saves page text to file
-  4) Code exec processes file and writes `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\output.txt`
-  5) File API reads `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\output.txt` and verifies content
+  4) Code exec processes file and writes `<SANDBOX_WORKSPACE>/output.txt`
+  5) File API reads `<SANDBOX_WORKSPACE>/output.txt` and verifies content
   6) If running in container, the equivalent path is `/workspace/...`
 - **SC-003**: Shell API runs `echo test` and returns output; `ls`/`dir` lists the workspace.
 - **SC-004**: File API supports read/write/list/search/replace with consistent errors.
 - **SC-005**: Browser info returns CDP address and external tool can connect and perform one `newPage` navigation.
 - **SC-006**: Docs list ports, env vars, startup, limitations/known issues.
-- **SC-007**: All runtime artifacts stay on `D:\\Desktop\\sandbox\\open-sandbox` (e.g., `D:\\Desktop\\sandbox\\open-sandbox\\.cache`).
+- **SC-007**: All runtime artifacts stay under `SANDBOX_ROOT` (default `<repo_root>`, e.g., `<SANDBOX_ROOT>/.cache`).
 
 ## Assumptions & Open Questions
 

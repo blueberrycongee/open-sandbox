@@ -11,13 +11,13 @@ Deliver a single-node/single-container sandbox MVP with a unified HTTP entry and
 
 **Language/Version**: Go 1.24+ (tested: 1.24.11 on Windows)
 **Primary Dependencies**: Standard library net/http only; no routing libraries
-**Storage**: Absolute host workspace at `D:\\Desktop\\sandbox\\open-sandbox\\workspace`
+**Storage**: Absolute host workspace at `SANDBOX_WORKSPACE` (default `<repo_root>/workspace`)
 **Testing**: Go testing (standard library)
 **Target Platform**: Windows host + local Docker
 **Project Type**: Single service
 **Performance Goals**: No hard targets (avoid obvious blocking)
-**Constraints**: All cache/log/build artifacts must stay on `D:\\Desktop\\sandbox\\open-sandbox`
-**Container Mapping**: If containerized, mount `D:\\Desktop\\sandbox\\open-sandbox\\workspace` to `/workspace` and use `/workspace` paths inside the container
+**Constraints**: All cache/log/build artifacts must stay under `SANDBOX_ROOT` (default `<repo_root>`)
+**Container Mapping**: If containerized, mount `SANDBOX_WORKSPACE` to `/workspace` and use `/workspace` paths inside the container
 **Scale/Scope**: Single-node/single-container MVP
 
 ## Constitution Check
@@ -134,9 +134,9 @@ tests/
 
 1) Start service locally on Windows.
 2) `GET /v1/sandbox` returns capabilities.
-3) Browser API opens `https://example.com` and writes screenshot to `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\screenshots\\example.png`.
+3) Browser API opens `https://example.com` and writes screenshot to `<SANDBOX_WORKSPACE>/screenshots/example.png`.
 4) File API reads screenshot metadata or saves page text.
-5) Code exec processes file and writes `D:\\Desktop\\sandbox\\open-sandbox\\workspace\\output.txt`.
+5) Code exec processes file and writes `<SANDBOX_WORKSPACE>/output.txt`.
 6) File API reads `output.txt` and returns contents.
 7) VNC page loads at `http://localhost:8080/vnc/index.html`.
 8) Jupyter and code-server endpoints return valid pages.
@@ -151,7 +151,7 @@ tests/
 
 - Atomic development and commits.
 - Every change includes tests written first.
-- All runtime artifacts stay under `D:\\Desktop\\sandbox\\open-sandbox`.
+- All runtime artifacts stay under `SANDBOX_ROOT`.
 
 ## Complexity Tracking
 

@@ -135,6 +135,6 @@
 
 ## Notes
 
-- Absolute paths only; host workspace is `D:\\Desktop\\sandbox\\open-sandbox\\workspace` (create if missing)
+- Absolute paths only; host workspace is `SANDBOX_WORKSPACE` (default `<repo_root>/workspace`)
 - If containerized, mount host workspace to `/workspace` and use `/workspace` inside the container
-- All runtime artifacts (cache/logs/build) must stay on `D:\\Desktop\\sandbox\\open-sandbox`
+- All runtime artifacts (cache/logs/build) must stay under `SANDBOX_ROOT`
