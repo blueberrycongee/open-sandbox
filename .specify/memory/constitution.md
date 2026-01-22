@@ -1,50 +1,60 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# open-sandbox Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. MVP First, Demo-Ready
+优先保证可演示、可用。功能选择以“端到端闭环可跑”为第一标准。
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Single-Node, Single-Container
+MVP 必须在单机/单容器内完成一体化沙箱（Browser/VNC/IDE/Jupyter/Shell/File/Code）。
+本机环境是Windows，所有的构建产物和缓存以及临时文件请你留在D盘
+采用TDD开发的时候请你自我闭环，可以在wsl中运行测试，wsl在d盘，允许安装任何所需要的工具链
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Simplicity Over Cleverness
+清晰可维护、少魔法。模块职责单一，避免隐式依赖与隐式行为。
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Test-First (Non-Negotiable)
+严格 TDD：先写测试再实现。任何实现必须有对应测试。
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Safe-by-Default for MVP
+安全与性能优化可延后，但不得留下明显安全洞；任何风险必须在文档中说明。
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technical Standards
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Language & Dependencies
+- 主语言为 Go；API 使用 net/http。
+- 依赖最小化，避免引入重量级框架。
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### Browser & VNC
+- 浏览器使用有头模式。
+- 必须支持 CDP 控制与 VNC 接管。
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### API & Error Model
+- 所有 API 必须有清晰、统一的错误模型与最小日志输出。
+- 错误返回需可定位（例如包含错误码/消息/trace_id 或等效字段）。
+
+## Documentation Requirements
+
+文档必须齐全且可落地执行，至少包含：
+- README
+- 运行方式
+- 端口说明
+- 环境变量说明
+- limitations / TODO（写清所有假设与未决点）
+
+## Development Workflow
+
+- 原子化开发与原子化提交（小步提交，每次变更聚焦单一目标）。
+- 遵循协作规范：清晰命名、错误处理与最小日志输出。
+
+## Testing Strategy
+
+- 严格 TDD：先写测试再实现。
+- 测试必须覆盖主要路径与边界条件。
+- 任何实现都必须有对应测试。
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+本宪章优先级高于其他开发惯例；任何偏离必须在文档中说明并记录原因。
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-01-22 | **Last Amended**: 2026-01-22

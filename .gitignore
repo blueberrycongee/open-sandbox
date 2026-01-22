@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+
+# Build outputs
+build/
+dist/
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Codex
+.codex/auth.json
+.codex/models_cache.json
+.codex/sessions/
+.codex/tmp/
+.codex/skills/
+
+# Spec-kit memory outputs
+.specify/memory/spec.md
+.specify/memory/plan.md
+.specify/memory/tasks.md
+
+# Cache
+.cache/
