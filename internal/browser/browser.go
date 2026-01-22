@@ -205,7 +205,7 @@ func (service *Service) launchBrowser() error {
 		return err
 	}
 
-	cdpURL, err := fetchWebSocketURL(service.config.RemoteDebuggingHost, service.config.RemoteDebuggingPort)
+	cdpURL, err := fetchWebSocketURL(service.config.RemoteDebuggingHost, service.config.RemoteDebuggingPort, service.config.StartupTimeout)
 	if err != nil {
 		service.stopChromeProcess()
 		return err
@@ -259,13 +259,17 @@ func (service *Service) stopChromeProcess() {
 	service.cmd = nil
 }
 
-func fetchWebSocketURL(host string, port int) (string, error) {
+func fetchWebSocketURL(host string, port int, timeout time.Duration) (string, error) {
 	url := fmt.Sprintf("http://%s:%d/json/version", host, port)
-	deadline := time.Now().Add(10 * time.Second)
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: minDuration(2*time.Second, timeout)}
 	var lastErr error
 
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(url)
+		resp, err := client.Get(url)
 		if err != nil {
 			lastErr = err
 			time.Sleep(200 * time.Millisecond)
@@ -292,6 +296,13 @@ func fetchWebSocketURL(host string, port int) (string, error) {
 		lastErr = errors.New("timed out waiting for browser websocket")
 	}
 	return "", lastErr
+}
+
+func minDuration(a time.Duration, b time.Duration) time.Duration {
+	if a <= b {
+		return a
+	}
+	return b
 }
 
 func detectChromeBinary() string {
