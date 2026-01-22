@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,7 +12,6 @@ import (
 
 	"open-sandbox/internal/api"
 	"open-sandbox/internal/api/handlers"
-	"open-sandbox/internal/browser"
 	"open-sandbox/internal/config"
 )
 
@@ -20,12 +20,33 @@ func TestBrowserScreenshot(t *testing.T) {
 		t.Fatalf("ensure workspace: %v", err)
 	}
 
-	service := browser.NewService("ws://127.0.0.1:9222/devtools/browser/mock")
+	service := startBrowserService(t)
 	router := api.NewRouter()
 	handlers.RegisterBrowserRoutes(router, service)
 
+	page := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<html><body>ok</body></html>"))
+	}))
+	defer page.Close()
+
 	server := httptest.NewServer(router)
 	defer server.Close()
+
+	navigateBody, err := json.Marshal(map[string]string{"url": page.URL})
+	if err != nil {
+		t.Fatalf("marshal navigate: %v", err)
+	}
+	navigateResp, err := http.Post(server.URL+"/v1/browser/navigate", "application/json", bytes.NewReader(navigateBody))
+	if err != nil {
+		t.Fatalf("navigate request failed: %v", err)
+	}
+	if navigateResp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(navigateResp.Body)
+		navigateResp.Body.Close()
+		t.Fatalf("navigate status %d: %s", navigateResp.StatusCode, string(bodyBytes))
+	}
+	navigateResp.Body.Close()
 
 	targetPath := filepath.Join(config.HostWorkspacePath, "screenshots", "example.png")
 	_ = os.Remove(targetPath)

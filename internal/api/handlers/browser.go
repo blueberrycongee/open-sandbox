@@ -28,9 +28,12 @@ func RegisterBrowserRoutes(router *api.Router, service *browser.Service) {
 
 func BrowserInfoHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		cdpAddress := strings.TrimSpace(service.Info())
-		if cdpAddress == "" {
-			return api.NewAppError("browser_unavailable", "browser CDP address not configured", http.StatusServiceUnavailable)
+		cdpAddress, err := service.Info()
+		if err != nil {
+			if err == browser.ErrBrowserUnavailable {
+				return api.NewAppError("browser_unavailable", "browser binary not found", http.StatusServiceUnavailable)
+			}
+			return api.NewAppError("browser_unavailable", err.Error(), http.StatusServiceUnavailable)
 		}
 
 		payload := map[string]string{
@@ -51,6 +54,13 @@ func BrowserNavigateHandler(service *browser.Service) api.HandlerFunc {
 		}
 		if strings.TrimSpace(req.URL) == "" {
 			return api.NewAppError("bad_request", "url is required", http.StatusBadRequest)
+		}
+
+		if err := service.Navigate(req.URL); err != nil {
+			if err == browser.ErrBrowserUnavailable {
+				return api.NewAppError("browser_unavailable", "browser binary not found", http.StatusServiceUnavailable)
+			}
+			return api.NewAppError("navigate_failed", err.Error(), http.StatusInternalServerError)
 		}
 
 		payload := map[string]string{
@@ -80,6 +90,9 @@ func BrowserScreenshotHandler(service *browser.Service) api.HandlerFunc {
 		}
 
 		if err := service.Screenshot(req.Path); err != nil {
+			if err == browser.ErrBrowserUnavailable {
+				return api.NewAppError("browser_unavailable", "browser binary not found", http.StatusServiceUnavailable)
+			}
 			return api.NewAppError(api.CodeInternalError, "screenshot failed", http.StatusInternalServerError)
 		}
 

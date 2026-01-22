@@ -1,21 +1,23 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/chromedp/chromedp"
 
 	"open-sandbox/internal/api"
 	"open-sandbox/internal/api/handlers"
-	"open-sandbox/internal/browser"
 	"open-sandbox/pkg/types"
 )
 
 func TestBrowserInfo(t *testing.T) {
-	t.Setenv("SANDBOX_BROWSER_CDP", "ws://127.0.0.1:9222/devtools/browser/mock")
-	service := browser.NewService(os.Getenv("SANDBOX_BROWSER_CDP"))
+	service := startBrowserService(t)
 
 	router := api.NewRouter()
 	handlers.RegisterBrowserRoutes(router, service)
@@ -42,7 +44,18 @@ func TestBrowserInfo(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected data to be an object")
 	}
-	if data["cdp_address"] != "ws://127.0.0.1:9222/devtools/browser/mock" {
+	cdpAddress, _ := data["cdp_address"].(string)
+	if !strings.HasPrefix(cdpAddress, "ws://") && !strings.HasPrefix(cdpAddress, "wss://") {
 		t.Fatalf("unexpected cdp address: %v", data["cdp_address"])
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	allocCtx, allocCancel := chromedp.NewRemoteAllocator(ctx, cdpAddress)
+	defer allocCancel()
+	tabCtx, tabCancel := chromedp.NewContext(allocCtx)
+	defer tabCancel()
+	if err := chromedp.Run(tabCtx, chromedp.Navigate("about:blank")); err != nil {
+		t.Fatalf("cdp connect failed: %v", err)
 	}
 }
