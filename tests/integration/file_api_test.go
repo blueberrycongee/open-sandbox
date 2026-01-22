@@ -24,7 +24,7 @@ func TestFileCRUDSearchReplace(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	targetPath := filepath.Join(config.HostWorkspacePath, "test-file.txt")
+	targetPath := filepath.Join(config.WorkspacePath(), "test-file.txt")
 
 	writeBody, err := json.Marshal(map[string]string{
 		"path":    targetPath,
@@ -56,7 +56,7 @@ func TestFileCRUDSearchReplace(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	listResp, err := http.Get(server.URL + "/v1/file/list?path=" + filepath.ToSlash(config.HostWorkspacePath))
+	listResp, err := http.Get(server.URL + "/v1/file/list?path=" + filepath.ToSlash(config.WorkspacePath()))
 	if err != nil {
 		t.Fatalf("list request failed: %v", err)
 	}

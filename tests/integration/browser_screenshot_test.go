@@ -48,7 +48,7 @@ func TestBrowserScreenshot(t *testing.T) {
 	}
 	navigateResp.Body.Close()
 
-	targetPath := filepath.Join(config.HostWorkspacePath, "screenshots", "example.png")
+	targetPath := filepath.Join(config.WorkspacePath(), "screenshots", "example.png")
 	_ = os.Remove(targetPath)
 
 	body, err := json.Marshal(map[string]string{"path": targetPath})

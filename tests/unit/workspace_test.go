@@ -9,19 +9,20 @@ import (
 )
 
 func TestEnsureWorkspace(t *testing.T) {
-	if !filepath.IsAbs(config.HostWorkspacePath) {
-		t.Fatalf("workspace path must be absolute: %s", config.HostWorkspacePath)
+	workspace := config.WorkspacePath()
+	if !filepath.IsAbs(workspace) {
+		t.Fatalf("workspace path must be absolute: %s", workspace)
 	}
 
 	if err := config.EnsureWorkspace(); err != nil {
 		t.Fatalf("ensure workspace failed: %v", err)
 	}
 
-	info, err := os.Stat(config.HostWorkspacePath)
+	info, err := os.Stat(workspace)
 	if err != nil {
 		t.Fatalf("workspace should exist: %v", err)
 	}
 	if !info.IsDir() {
-		t.Fatalf("workspace path is not a directory: %s", config.HostWorkspacePath)
+		t.Fatalf("workspace path is not a directory: %s", workspace)
 	}
 }

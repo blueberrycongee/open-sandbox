@@ -35,7 +35,7 @@ func TestCodeExec(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	outputPath := filepath.Join(config.HostWorkspacePath, "output.txt")
+	outputPath := filepath.Join(config.WorkspacePath(), "output.txt")
 	_ = os.Remove(outputPath)
 
 	var args []string

@@ -29,7 +29,7 @@ func ShellExecHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 		return api.NewAppError("bad_request", "command is required", http.StatusBadRequest)
 	}
 
-	result, err := shell.Exec(req.Command, req.Args, config.HostWorkspacePath)
+	result, err := shell.Exec(req.Command, req.Args, config.WorkspacePath())
 	if err != nil {
 		return api.NewAppError("exec_failed", err.Error(), http.StatusInternalServerError)
 	}

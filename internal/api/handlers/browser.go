@@ -85,7 +85,7 @@ func BrowserScreenshotHandler(service *browser.Service) api.HandlerFunc {
 		if !filepath.IsAbs(req.Path) {
 			return api.NewAppError("bad_request", "path must be absolute", http.StatusBadRequest)
 		}
-		if !strings.HasPrefix(req.Path, config.HostWorkspacePath) && !strings.HasPrefix(req.Path, config.ContainerWorkspacePath) {
+		if !strings.HasPrefix(req.Path, config.WorkspacePath()) && !strings.HasPrefix(req.Path, config.ContainerWorkspacePath) {
 			return api.NewAppError("bad_request", "path must be within workspace", http.StatusBadRequest)
 		}
 

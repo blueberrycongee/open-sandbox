@@ -43,7 +43,7 @@ func FileReadHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 	}
-	if err := file.ValidateWorkspacePath(req.Path, config.HostWorkspacePath); err != nil {
+	if err := file.ValidateWorkspacePath(req.Path, config.WorkspacePath()); err != nil {
 		return api.NewAppError("bad_request", err.Error(), http.StatusBadRequest)
 	}
 
@@ -67,7 +67,7 @@ func FileWriteHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 	}
-	if err := file.ValidateWorkspacePath(req.Path, config.HostWorkspacePath); err != nil {
+	if err := file.ValidateWorkspacePath(req.Path, config.WorkspacePath()); err != nil {
 		return api.NewAppError("bad_request", err.Error(), http.StatusBadRequest)
 	}
 	if err := file.Write(req.Path, req.Content); err != nil {
@@ -85,7 +85,7 @@ func FileWriteHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 
 func FileListHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 	path := r.URL.Query().Get("path")
-	if err := file.ValidateWorkspacePath(path, config.HostWorkspacePath); err != nil {
+	if err := file.ValidateWorkspacePath(path, config.WorkspacePath()); err != nil {
 		return api.NewAppError("bad_request", err.Error(), http.StatusBadRequest)
 	}
 
@@ -109,7 +109,7 @@ func FileSearchHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 	}
-	if err := file.ValidateWorkspacePath(req.Path, config.HostWorkspacePath); err != nil {
+	if err := file.ValidateWorkspacePath(req.Path, config.WorkspacePath()); err != nil {
 		return api.NewAppError("bad_request", err.Error(), http.StatusBadRequest)
 	}
 
@@ -133,7 +133,7 @@ func FileReplaceHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 	}
-	if err := file.ValidateWorkspacePath(req.Path, config.HostWorkspacePath); err != nil {
+	if err := file.ValidateWorkspacePath(req.Path, config.WorkspacePath()); err != nil {
 		return api.NewAppError("bad_request", err.Error(), http.StatusBadRequest)
 	}
 

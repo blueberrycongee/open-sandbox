@@ -3,8 +3,10 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,9 +21,16 @@ func TestShellExecEcho(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 
+	command := "cmd"
+	args := []string{"/c", "echo", "test"}
+	if runtime.GOOS != "windows" {
+		command = "/usr/bin/sh"
+		args = []string{"-c", "echo test"}
+	}
+
 	body, err := json.Marshal(map[string]any{
-		"command": "cmd",
-		"args":    []string{"/c", "echo", "test"},
+		"command": command,
+		"args":    args,
 	})
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
@@ -34,7 +43,8 @@ func TestShellExecEcho(t *testing.T) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 200, got %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var payload map[string]any

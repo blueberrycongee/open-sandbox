@@ -57,7 +57,7 @@ func TestEndToEndFlow(t *testing.T) {
 	}
 	navigateResp.Body.Close()
 
-	screenshotPath := filepath.Join(config.HostWorkspacePath, "screenshots", "example.png")
+	screenshotPath := filepath.Join(config.WorkspacePath(), "screenshots", "example.png")
 	_ = os.Remove(screenshotPath)
 
 	screenshotBody, _ := json.Marshal(map[string]string{"path": screenshotPath})
@@ -80,7 +80,7 @@ func TestEndToEndFlow(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	outputPath := filepath.Join(config.HostWorkspacePath, "output.txt")
+	outputPath := filepath.Join(config.WorkspacePath(), "output.txt")
 	_ = os.Remove(outputPath)
 
 	var args []string

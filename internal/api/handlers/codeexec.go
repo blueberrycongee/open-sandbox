@@ -26,7 +26,7 @@ func CodeExecHandler(w http.ResponseWriter, r *http.Request) *api.AppError {
 		return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 	}
 
-	result, err := codeexec.Exec(req.Runtime, req.Args, config.HostWorkspacePath)
+	result, err := codeexec.Exec(req.Runtime, req.Args, config.WorkspacePath())
 	if err != nil {
 		message := err.Error()
 		switch {
