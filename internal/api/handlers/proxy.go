@@ -45,13 +45,17 @@ func buildReverseProxy(target string, basePath string) (*httputil.ReverseProxy, 
 }
 
 func joinURLPath(basePath string, reqPath string) string {
-	if reqPath == "" {
-		if basePath == "" {
+	cleanReq := strings.TrimPrefix(reqPath, "/")
+	if basePath == "" {
+		if cleanReq == "" {
 			return "/"
 		}
+		return "/" + cleanReq
+	}
+	if cleanReq == "" {
 		return basePath
 	}
-	return path.Join(basePath, reqPath)
+	return path.Join(basePath, cleanReq)
 }
 
 func proxyHandler(proxy *httputil.ReverseProxy) api.HandlerFunc {
