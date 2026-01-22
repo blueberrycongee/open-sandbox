@@ -17,17 +17,15 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Codex
-.codex/auth.json
-.codex/models_cache.json
-.codex/sessions/
-.codex/tmp/
-.codex/skills/
+# Codex (local only)
+.codex/
 
-# Spec-kit memory outputs
-.specify/memory/spec.md
-.specify/memory/plan.md
-.specify/memory/tasks.md
+# Spec-kit local outputs
+.specify/
+
+# Spec prompts (local)
+speckit-constitution.txt
+speckit-specify.txt
 
 # Cache
 .cache/
