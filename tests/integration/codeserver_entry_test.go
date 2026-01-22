@@ -11,13 +11,19 @@ import (
 )
 
 func TestCodeServerEntry(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<html>code-server</html>"))
+	}))
+	defer upstream.Close()
+
 	router := api.NewRouter()
-	handlers.RegisterCodeServerRoutes(router)
+	handlers.RegisterCodeServerRoutes(router, upstream.URL)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/code-server/")
+	resp, err := http.Get(server.URL + "/code-server/?folder=/workspace")
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
