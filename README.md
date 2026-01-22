@@ -31,15 +31,40 @@ Non-Functional Requirements
 
 Quick Start
 -----------
-TBD (will document container + local startup)
+Local (Windows)
+```
+go test ./...
+go run ./cmd/server
+```
+
+Docker (placeholder)
+```
+docker build -t open-sandbox .
+docker run --rm -p 8080:8080 -v D:\Desktop\sandbox\open-sandbox\workspace:/workspace open-sandbox
+```
 
 Ports
 -----
-TBD (document all ports used by API, VNC, Jupyter, code-server)
+- API + static pages: 8080 (default)
 
 Environment Variables
 ---------------------
-TBD (document all config knobs and defaults)
+- `SANDBOX_ADDR` (default `:8080`)
+- `SANDBOX_BROWSER_CDP` (CDP websocket address for a headed browser)
+
+Runtime Artifacts
+-----------------
+All cache, logs, and build outputs must live under `D:\Desktop\sandbox\open-sandbox`:
+- Cache: `D:\Desktop\sandbox\open-sandbox\.cache`
+- Logs: `D:\Desktop\sandbox\open-sandbox\logs`
+- Build outputs: `D:\Desktop\sandbox\open-sandbox\build`
+
+Limitations / TODO
+------------------
+- Browser actions are stubbed; CDP integration and real navigation/screenshot capture need implementation.
+- VNC, Jupyter Lab, and code-server endpoints are placeholders pending external service wiring.
+- JWT auth toggle is a placeholder and not enforced yet.
+- Acceptance criteria are not met for: CDP connectable browser control, VNC takeover, and real Jupyter/code-server access.
 
 Docs & Specs
 ------------

@@ -1,0 +1,29 @@
+# open-sandbox MVP Quickstart
+
+## Local (Windows)
+
+1) Ensure Go 1.24+ is installed.
+2) From the repo root:
+
+```powershell
+go test ./...
+go run ./cmd/server
+```
+
+3) Open endpoints:
+- API: http://localhost:8080/v1/sandbox
+- VNC placeholder: http://localhost:8080/vnc/index.html
+- Jupyter placeholder: http://localhost:8080/jupyter
+- Code-server placeholder: http://localhost:8080/code-server/
+
+## Docker (Placeholder)
+
+```powershell
+docker build -t open-sandbox .
+docker run --rm -p 8080:8080 -v D:\Desktop\sandbox\open-sandbox\workspace:/workspace open-sandbox
+```
+
+## Environment
+
+- `SANDBOX_ADDR` sets the HTTP listen address (default `:8080`)
+- `SANDBOX_BROWSER_CDP` sets the CDP websocket address returned by the browser info API
