@@ -7,6 +7,11 @@ Development Principles
 - Atomic changes: one goal per commit.
 - Test-first: write tests before implementation (TDD).
 - Minimal dependencies; prefer standard library.
+- All code comments must be in English and follow best practices:
+  - Explain intent/why, not what the code already says
+  - Keep comments concise
+  - Avoid redundant or obvious comments
+  - No TODOs without an issue reference
 
 Workflow
 1) Create or update the spec using `/speckit.specify`, then `/speckit.plan` and `/speckit.tasks`.

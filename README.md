@@ -8,6 +8,7 @@ Project Goals
 - Deliver a demo-ready MVP that is actually usable on a single machine.
 - Provide a unified HTTP API for browser, shell, file, and code execution workflows.
 - Ensure all runtime artifacts (cache/logs/build outputs) stay on D:\.
+- All code comments must be English-only and follow best practices (intent/why, concise, no obvious restatements).
 
 MVP Scope (Must-Have)
 ---------------------
