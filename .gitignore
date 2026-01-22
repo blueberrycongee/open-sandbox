@@ -29,3 +29,20 @@ speckit-specify.txt
 
 # Cache
 .cache/
+
+# Go build artifacts
+*.exe
+*.dll
+*.test
+*.out
+vendor/
+
+# Environment
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# Runtime workspace
+workspace/
