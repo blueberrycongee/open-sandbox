@@ -9,6 +9,7 @@ import (
 	"open-sandbox/internal/api"
 	"open-sandbox/internal/browser"
 	"open-sandbox/internal/config"
+	"open-sandbox/internal/file"
 	"open-sandbox/pkg/types"
 )
 
@@ -85,7 +86,8 @@ func BrowserScreenshotHandler(service *browser.Service) api.HandlerFunc {
 		if !filepath.IsAbs(req.Path) {
 			return api.NewAppError("bad_request", "path must be absolute", http.StatusBadRequest)
 		}
-		if !strings.HasPrefix(req.Path, config.WorkspacePath()) && !strings.HasPrefix(req.Path, config.ContainerWorkspacePath) {
+		if file.ValidateWorkspacePath(req.Path, config.WorkspacePath()) != nil &&
+			file.ValidateWorkspacePath(req.Path, config.ContainerWorkspacePath) != nil {
 			return api.NewAppError("bad_request", "path must be within workspace", http.StatusBadRequest)
 		}
 

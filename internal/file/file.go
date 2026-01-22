@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -15,7 +16,16 @@ func ValidateWorkspacePath(path string, workspace string) error {
 
 	cleanWorkspace := filepath.Clean(workspace)
 	cleanPath := filepath.Clean(path)
-	if !strings.HasPrefix(strings.ToLower(cleanPath), strings.ToLower(cleanWorkspace)) {
+	if runtime.GOOS == "windows" {
+		cleanWorkspace = strings.ToLower(cleanWorkspace)
+		cleanPath = strings.ToLower(cleanPath)
+	}
+
+	rel, err := filepath.Rel(cleanWorkspace, cleanPath)
+	if err != nil {
+		return errors.New("path must be within workspace")
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return errors.New("path must be within workspace")
 	}
 	return nil
