@@ -17,7 +17,7 @@ func main() {
 	if err := config.EnsureWorkspace(); err != nil {
 		log.Fatalf("workspace init failed: %v", err)
 	}
-	if err := os.MkdirAll(config.CacheRoot, 0755); err != nil {
+	if err := os.MkdirAll(config.CachePath(), 0755); err != nil {
 		log.Fatalf("cache init failed: %v", err)
 	}
 
@@ -31,7 +31,7 @@ func main() {
 
 	browserService := browser.NewService(browser.Config{
 		BinaryPath:             os.Getenv("SANDBOX_BROWSER_BIN"),
-		UserDataDir:            filepath.Join(config.CacheRoot, "chrome-profile"),
+		UserDataDir:            filepath.Join(config.CachePath(), "chrome-profile"),
 		RemoteDebuggingHost:    getenv("SANDBOX_CDP_HOST", "127.0.0.1"),
 		RemoteDebuggingPort:    getenvInt("SANDBOX_CDP_PORT", 9222),
 		ExistingWebSocketDebug: os.Getenv("SANDBOX_BROWSER_CDP"),

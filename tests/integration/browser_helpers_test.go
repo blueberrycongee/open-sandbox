@@ -15,11 +15,11 @@ func startBrowserService(t *testing.T) *browser.Service {
 	cfg := browser.DefaultConfig()
 	cfg.BinaryPath = os.Getenv("SANDBOX_BROWSER_BIN")
 	cfg.ExistingWebSocketDebug = os.Getenv("SANDBOX_BROWSER_CDP")
-	cfg.UserDataDir = filepath.Join(config.CacheRoot, "chrome-profile-test")
+	cfg.UserDataDir = filepath.Join(config.CachePath(), "chrome-profile-test")
 	cfg.RemoteDebuggingPort = 0
 	cfg.Headless = true
 
-	if err := os.MkdirAll(config.CacheRoot, 0755); err != nil {
+	if err := os.MkdirAll(config.CachePath(), 0755); err != nil {
 		t.Fatalf("cache dir setup failed: %v", err)
 	}
 
