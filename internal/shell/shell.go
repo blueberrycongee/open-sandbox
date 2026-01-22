@@ -2,8 +2,12 @@ package shell
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
+	"time"
 )
+
+const defaultCommandTimeout = 30 * time.Second
 
 type Result struct {
 	Stdout   string
@@ -12,7 +16,10 @@ type Result struct {
 }
 
 func Exec(command string, args []string, workingDir string) (Result, error) {
-	cmd := exec.Command(command, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = workingDir
 
 	var stdout bytes.Buffer
