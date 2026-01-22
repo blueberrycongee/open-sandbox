@@ -50,7 +50,15 @@ Ports
 Environment Variables
 ---------------------
 - `SANDBOX_ADDR` (default `:8080`)
-- `SANDBOX_BROWSER_CDP` (CDP websocket address for a headed browser)
+- `SANDBOX_BROWSER_BIN` (path to Chrome/Chromium binary)
+- `SANDBOX_BROWSER_CDP` (existing CDP websocket address; skips launching a new browser)
+- `SANDBOX_CDP_HOST` (default `127.0.0.1`)
+- `SANDBOX_CDP_PORT` (default `9222`)
+- `SANDBOX_BROWSER_HEADLESS` (default `false`)
+- `SANDBOX_JUPYTER_URL` (reverse proxy target, e.g. `http://localhost:8888`)
+- `SANDBOX_CODESERVER_URL` (reverse proxy target, e.g. `http://localhost:8081`)
+- `SANDBOX_JWT_ENABLED` (default `false`)
+- `SANDBOX_JWT_SECRET` (JWT signing secret)
 
 Runtime Artifacts
 -----------------
@@ -61,10 +69,10 @@ All cache, logs, and build outputs must live under `D:\Desktop\sandbox\open-sand
 
 Limitations / TODO
 ------------------
-- Browser actions are stubbed; CDP integration and real navigation/screenshot capture need implementation.
-- VNC, Jupyter Lab, and code-server endpoints are placeholders pending external service wiring.
+- Browser requires a locally installed Chrome/Chromium or an existing CDP endpoint.
+- VNC view is a live browser screen with click support, not a full desktop capture.
+- Jupyter Lab and code-server are proxied endpoints; the upstream services must be running.
 - JWT auth toggle is a placeholder and not enforced yet.
-- Acceptance criteria are not met for: CDP connectable browser control, VNC takeover, and real Jupyter/code-server access.
 
 Docs & Specs
 ------------
