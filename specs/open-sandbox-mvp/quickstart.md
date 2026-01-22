@@ -15,6 +15,20 @@ go run ./cmd/server
 - VNC placeholder: http://localhost:8080/vnc/index.html
 - Jupyter placeholder: http://localhost:8080/jupyter
 - Code-server placeholder: http://localhost:8080/code-server/
+- MCP HTTP: http://localhost:8080/mcp
+- MCP SSE: http://localhost:8080/mcp/sse
+
+MCP example request (HTTP):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "mcp.capabilities",
+  "params": {
+    "protocol_version": "1.0"
+  }
+}
+```
 
 ## Docker (Placeholder)
 

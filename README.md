@@ -7,7 +7,7 @@ Project Goals
 -------------
 - Deliver a demo-ready MVP that is actually usable on a single machine.
 - Provide a unified HTTP API for browser, shell, file, and code execution workflows.
-- Ensure all runtime artifacts (cache/logs/build outputs) stay on D:\.
+- Ensure all runtime artifacts (cache/logs/build outputs) stay under `SANDBOX_ROOT`.
 - All code comments must be English-only and follow best practices (intent/why, concise, no obvious restatements).
 
 MVP Scope (Must-Have)
@@ -24,7 +24,7 @@ Non-Functional Requirements
 ---------------------------
 - Runs on Windows and local Docker.
 - Docs include ports, env vars, and startup instructions.
-- Auth can be off by default, but has a JWT toggle placeholder.
+- MCP auth can be off by default, but supports JWT verification for HTTP/SSE transport.
 - No strict perf targets, but avoid obvious blocking.
 - Atomic development & commits.
 - TDD required: tests first, then implementation.
@@ -47,6 +47,23 @@ Ports
 -----
 - API + static pages: 8080 (default)
 
+MCP Integration
+---------------
+- HTTP JSON-RPC: `POST /mcp`
+- SSE JSON-RPC: `GET /mcp/sse?request=<urlencoded JSON>`
+
+Example JSON-RPC payload:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "mcp.capabilities",
+  "params": {
+    "protocol_version": "1.0"
+  }
+}
+```
+
 Environment Variables
 ---------------------
 - `SANDBOX_ADDR` (default `:8080`)
@@ -62,8 +79,11 @@ Environment Variables
 - `SANDBOX_BROWSER_HEADLESS` (default `false`)
 - `SANDBOX_JUPYTER_URL` (reverse proxy target, e.g. `http://localhost:8888`)
 - `SANDBOX_CODESERVER_URL` (reverse proxy target, e.g. `http://localhost:8081`)
-- `SANDBOX_JWT_ENABLED` (default `false`)
-- `SANDBOX_JWT_SECRET` (JWT signing secret)
+- `MCP_AUTH_ENABLED` (default `false`)
+- `MCP_AUTH_JWT_SECRET` (HMAC secret for HS256/384/512)
+- `MCP_AUTH_JWT_PUBLIC_KEY` (PEM public key for RS/ES/EdDSA)
+- `MCP_AUTH_AUDIENCE` (optional audience validation)
+- `MCP_AUTH_ISSUER` (optional issuer validation)
 
 Runtime Artifacts
 -----------------
@@ -77,7 +97,15 @@ Limitations / TODO
 - Browser requires a locally installed Chrome/Chromium or an existing CDP endpoint.
 - VNC view is a live browser screen with click support, not a full desktop capture.
 - Jupyter Lab and code-server are proxied endpoints; the upstream services must be running.
-- JWT auth toggle is a placeholder and not enforced yet.
+- MCP HTTP/SSE endpoints support JWT auth when enabled; other MVP endpoints are unauthenticated.
+
+NFR Verification Checklist
+--------------------------
+- [ ] Minimal dependencies (stdlib preferred; JWT library allowed for MCP auth)
+- [ ] No breaking changes to existing HTTP APIs
+- [ ] Demo-ready on a single machine
+- [ ] Strict TDD followed for this feature
+- [ ] Runtime artifacts stay under `SANDBOX_ROOT`
 
 Docs & Specs
 ------------
