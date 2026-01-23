@@ -19,6 +19,7 @@ type Tool struct {
 	Name        string
 	Version     string
 	Permissions PermissionMeta
+	Schema      ToolSchema
 	Handler     ToolHandler
 }
 
@@ -26,6 +27,7 @@ type ToolInfo struct {
 	Name        string         `json:"name"`
 	Version     string         `json:"version"`
 	Permissions PermissionMeta `json:"permissions"`
+	Schema      ToolSchema     `json:"schema,omitempty"`
 }
 
 type Registry struct {
@@ -59,6 +61,7 @@ func (registry *Registry) List() []ToolInfo {
 			Name:        tool.Name,
 			Version:     tool.Version,
 			Permissions: tool.Permissions,
+			Schema:      tool.Schema,
 		})
 	}
 	sort.Slice(infos, func(i, j int) bool {

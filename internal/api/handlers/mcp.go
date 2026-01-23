@@ -9,8 +9,163 @@ import (
 	"open-sandbox/internal/mcp/tools"
 )
 
-func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
+func NewMCPRegistry(browserService *browser.Service) *mcp.Registry {
 	registry := mcp.NewRegistry()
+	browserNavigateSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"url": map[string]any{"type": "string"},
+			},
+			"required": []string{"url"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"navigated": map[string]any{"type": "boolean"},
+			},
+			"required": []string{"navigated"},
+		},
+	}
+	browserScreenshotSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path": map[string]any{"type": "string"},
+			},
+			"required": []string{"path"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path": map[string]any{"type": "string"},
+			},
+			"required": []string{"path"},
+		},
+	}
+	fileReadSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path": map[string]any{"type": "string"},
+			},
+			"required": []string{"path"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"content": map[string]any{"type": "string"},
+			},
+			"required": []string{"content"},
+		},
+	}
+	fileWriteSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path":    map[string]any{"type": "string"},
+				"content": map[string]any{"type": "string"},
+			},
+			"required": []string{"path", "content"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path": map[string]any{"type": "string"},
+			},
+			"required": []string{"path"},
+		},
+	}
+	fileListSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path": map[string]any{"type": "string"},
+			},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"entries": map[string]any{"type": "array"},
+			},
+			"required": []string{"entries"},
+		},
+	}
+	fileSearchSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path":  map[string]any{"type": "string"},
+				"query": map[string]any{"type": "string"},
+			},
+			"required": []string{"path", "query"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"matches": map[string]any{"type": "array"},
+			},
+			"required": []string{"matches"},
+		},
+	}
+	fileReplaceSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"path":    map[string]any{"type": "string"},
+				"search":  map[string]any{"type": "string"},
+				"replace": map[string]any{"type": "string"},
+			},
+			"required": []string{"path", "search", "replace"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"count": map[string]any{"type": "integer"},
+			},
+			"required": []string{"count"},
+		},
+	}
+	shellExecSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"command":     map[string]any{"type": "string"},
+				"args":        map[string]any{"type": "array"},
+				"working_dir": map[string]any{"type": "string"},
+			},
+			"required": []string{"command"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"stdout":    map[string]any{"type": "string"},
+				"stderr":    map[string]any{"type": "string"},
+				"exit_code": map[string]any{"type": "integer"},
+			},
+			"required": []string{"stdout", "stderr", "exit_code"},
+		},
+	}
+	codeExecSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"runtime":     map[string]any{"type": "string"},
+				"args":        map[string]any{"type": "array"},
+				"working_dir": map[string]any{"type": "string"},
+			},
+			"required": []string{"runtime"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"stdout":    map[string]any{"type": "string"},
+				"stderr":    map[string]any{"type": "string"},
+				"exit_code": map[string]any{"type": "integer"},
+			},
+			"required": []string{"stdout", "stderr", "exit_code"},
+		},
+	}
 	registry.Register(mcp.Tool{
 		Name:    "browser.navigate",
 		Version: "v1",
@@ -18,6 +173,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "network",
 		},
+		Schema:  browserNavigateSchema,
 		Handler: tools.BrowserNavigate(browserService),
 	})
 	registry.Register(mcp.Tool{
@@ -27,6 +183,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "workspace",
 		},
+		Schema:  browserScreenshotSchema,
 		Handler: tools.BrowserScreenshot(browserService),
 	})
 	registry.Register(mcp.Tool{
@@ -36,6 +193,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "workspace",
 		},
+		Schema:  fileReadSchema,
 		Handler: tools.FileRead(),
 	})
 	registry.Register(mcp.Tool{
@@ -45,6 +203,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "workspace",
 		},
+		Schema:  fileWriteSchema,
 		Handler: tools.FileWrite(),
 	})
 	registry.Register(mcp.Tool{
@@ -54,6 +213,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "workspace",
 		},
+		Schema:  fileListSchema,
 		Handler: tools.FileList(),
 	})
 	registry.Register(mcp.Tool{
@@ -63,6 +223,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "workspace",
 		},
+		Schema:  fileSearchSchema,
 		Handler: tools.FileSearch(),
 	})
 	registry.Register(mcp.Tool{
@@ -72,6 +233,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "workspace",
 		},
+		Schema:  fileReplaceSchema,
 		Handler: tools.FileReplace(),
 	})
 	registry.Register(mcp.Tool{
@@ -81,6 +243,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "exec",
 		},
+		Schema:  shellExecSchema,
 		Handler: tools.ShellExec(),
 	})
 	registry.Register(mcp.Tool{
@@ -90,8 +253,14 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 			Allow: true,
 			Scope: "exec",
 		},
+		Schema:  codeExecSchema,
 		Handler: tools.CodeExec(),
 	})
+	return registry
+}
+
+func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
+	registry := NewMCPRegistry(browserService)
 
 	auth, authErr := mcp.NewAuthenticator(mcp.LoadAuthConfig())
 	server := mcp.NewServer(registry, auth, authErr)

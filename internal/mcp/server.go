@@ -32,7 +32,14 @@ func (server *Server) HandleRequest(ctx context.Context, req Request) Response {
 		detail := NewErrorDetail(KindInvalidParams, err.Error(), KindInvalidParams)
 		return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
 	}
-	if req.Method == "mcp.capabilities" {
+	switch req.Method {
+	case MethodInitialize:
+		return server.handleInitialize(req)
+	case MethodToolsList:
+		return server.handleToolsList(req)
+	case MethodToolsCall:
+		return server.handleToolsCall(ctx, req)
+	case MethodCapabilities:
 		return NewSuccessResponse(req.ID, BuildCapabilities(server.registry))
 	}
 	tool, ok := server.registry.Get(req.Method)
@@ -40,23 +47,78 @@ func (server *Server) HandleRequest(ctx context.Context, req Request) Response {
 		detail := NewErrorDetail(KindMethodNotFound, "unknown method", KindMethodNotFound)
 		return NewErrorResponse(req.ID, ErrMethodNotFound, "method not found", detail)
 	}
-	result, toolErr := tool.Handler(ctx, req.Params)
-	if toolErr != nil {
-		if toolErr.TraceID == "" {
-			toolErr.TraceID = NewErrorDetail(toolErr.Code, toolErr.Message, toolErr.Kind).TraceID
-		}
-		switch toolErr.Kind {
-		case KindInvalidParams:
-			return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", *toolErr)
-		case KindUnauthorized:
-			return NewErrorResponse(req.ID, ErrUnauthorized, "unauthorized", *toolErr)
-		case KindForbidden:
-			return NewErrorResponse(req.ID, ErrForbidden, "forbidden", *toolErr)
-		default:
-			return NewErrorResponse(req.ID, ErrToolExecution, "tool error", *toolErr)
+	return server.handleToolInvocation(ctx, req.ID, tool, req.Params, false)
+}
+
+func (server *Server) handleInitialize(req Request) Response {
+	if len(req.Params) > 0 {
+		var params InitializeParams
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			detail := NewInvalidParamsDetail("invalid params")
+			return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
 		}
 	}
-	return NewSuccessResponse(req.ID, result)
+	return NewSuccessResponse(req.ID, InitializeResult{ProtocolVersion: SupportedProtocolVersion})
+}
+
+func (server *Server) handleToolsList(req Request) Response {
+	if len(req.Params) > 0 {
+		var payload map[string]any
+		if err := json.Unmarshal(req.Params, &payload); err != nil {
+			detail := NewInvalidParamsDetail("invalid params")
+			return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
+		}
+	}
+	return NewSuccessResponse(req.ID, ToolsListResult{Tools: server.registry.List()})
+}
+
+func (server *Server) handleToolsCall(ctx context.Context, req Request) Response {
+	if len(req.Params) == 0 {
+		detail := NewInvalidParamsDetail("invalid params")
+		return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
+	}
+	var params ToolCallParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		detail := NewInvalidParamsDetail("invalid params")
+		return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
+	}
+	if params.Name == "" {
+		detail := NewInvalidParamsDetail("name is required")
+		return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
+	}
+	tool, ok := server.registry.Get(params.Name)
+	if !ok || tool.Handler == nil {
+		detail := NewMethodNotFoundDetail("unknown tool")
+		return NewErrorResponse(req.ID, ErrMethodNotFound, "method not found", detail)
+	}
+	return server.handleToolInvocation(ctx, req.ID, tool, params.Arguments, true)
+}
+
+func (server *Server) handleToolInvocation(ctx context.Context, id json.RawMessage, tool Tool, params json.RawMessage, wrapResult bool) Response {
+	result, toolErr := tool.Handler(ctx, params)
+	if toolErr != nil {
+		return toolErrorResponse(id, toolErr)
+	}
+	if wrapResult {
+		return NewSuccessResponse(id, ToolCallResult{Result: result})
+	}
+	return NewSuccessResponse(id, result)
+}
+
+func toolErrorResponse(id json.RawMessage, toolErr *ErrorDetail) Response {
+	if toolErr.TraceID == "" {
+		toolErr.TraceID = NewErrorDetail(toolErr.Code, toolErr.Message, toolErr.Kind).TraceID
+	}
+	switch toolErr.Kind {
+	case KindInvalidParams:
+		return NewErrorResponse(id, ErrInvalidParams, "invalid params", *toolErr)
+	case KindUnauthorized:
+		return NewErrorResponse(id, ErrUnauthorized, "unauthorized", *toolErr)
+	case KindForbidden:
+		return NewErrorResponse(id, ErrForbidden, "forbidden", *toolErr)
+	default:
+		return NewErrorResponse(id, ErrToolExecution, "tool error", *toolErr)
+	}
 }
 
 func (server *Server) ServeStdio(r io.Reader, w io.Writer) error {

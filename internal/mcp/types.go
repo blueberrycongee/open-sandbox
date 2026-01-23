@@ -11,6 +11,10 @@ import (
 const (
 	JSONRPCVersion           = "2.0"
 	SupportedProtocolVersion = "1.0"
+	MethodCapabilities       = "mcp.capabilities"
+	MethodInitialize         = "initialize"
+	MethodToolsList          = "tools/list"
+	MethodToolsCall          = "tools/call"
 	ErrInvalidRequest        = -32600
 	ErrMethodNotFound        = -32601
 	ErrInvalidParams         = -32602
@@ -26,6 +30,13 @@ const (
 	KindForbidden            = "forbidden"
 	KindToolError            = "tool_error"
 )
+
+type JSONSchema map[string]any
+
+type ToolSchema struct {
+	Input  JSONSchema `json:"input,omitempty"`
+	Output JSONSchema `json:"output,omitempty"`
+}
 
 type Request struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -52,6 +63,27 @@ type ErrorDetail struct {
 	Message string `json:"message"`
 	TraceID string `json:"trace_id,omitempty"`
 	Kind    string `json:"kind,omitempty"`
+}
+
+type InitializeParams struct {
+	ProtocolVersion string `json:"protocol_version,omitempty"`
+}
+
+type InitializeResult struct {
+	ProtocolVersion string `json:"protocol_version"`
+}
+
+type ToolsListResult struct {
+	Tools []ToolInfo `json:"tools"`
+}
+
+type ToolCallParams struct {
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments,omitempty"`
+}
+
+type ToolCallResult struct {
+	Result any `json:"result"`
 }
 
 func ParseRequest(payload []byte) (Request, error) {
@@ -105,6 +137,22 @@ func NewErrorDetail(code, message, kind string) ErrorDetail {
 		TraceID: newTraceID(),
 		Kind:    kind,
 	}
+}
+
+func NewInvalidRequestDetail(message string) ErrorDetail {
+	return NewErrorDetail(KindInvalidRequest, message, KindInvalidRequest)
+}
+
+func NewInvalidParamsDetail(message string) ErrorDetail {
+	return NewErrorDetail(KindInvalidParams, message, KindInvalidParams)
+}
+
+func NewMethodNotFoundDetail(message string) ErrorDetail {
+	return NewErrorDetail(KindMethodNotFound, message, KindMethodNotFound)
+}
+
+func NewInternalDetail(message string) ErrorDetail {
+	return NewErrorDetail(KindInternal, message, KindInternal)
 }
 
 func NewErrorResponse(id json.RawMessage, code int, message string, detail ErrorDetail) Response {
