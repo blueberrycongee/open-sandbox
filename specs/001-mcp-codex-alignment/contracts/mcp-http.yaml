@@ -19,6 +19,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JsonRpcResponse'
+            text/event-stream:
+              schema:
+                type: string
         '204':
           description: No content for notifications
   /mcp/sse:

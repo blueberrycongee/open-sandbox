@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type Server struct {
@@ -180,6 +181,10 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	if wantsEventStream(r) {
+		writeSSE(w, resp)
+		return
+	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -189,18 +194,7 @@ func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	payload, _ := json.Marshal(resp)
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("event: message\n"))
-	_, _ = w.Write([]byte("data: "))
-	_, _ = w.Write(payload)
-	_, _ = w.Write([]byte("\n\n"))
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
+	writeSSE(w, resp)
 }
 
 func (server *Server) handleHTTPRequest(r *http.Request) (Response, bool) {
@@ -262,4 +256,24 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func writeSSE(w http.ResponseWriter, resp Response) {
+	payload, _ := json.Marshal(resp)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("event: message\n"))
+	_, _ = w.Write([]byte("data: "))
+	_, _ = w.Write(payload)
+	_, _ = w.Write([]byte("\n\n"))
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func wantsEventStream(r *http.Request) bool {
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	return strings.Contains(accept, "text/event-stream")
 }
