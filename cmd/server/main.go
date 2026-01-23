@@ -45,6 +45,7 @@ func main() {
 	handlers.RegisterCodeExecRoutes(router)
 	handlers.RegisterJupyterRoutes(router, os.Getenv("SANDBOX_JUPYTER_URL"))
 	handlers.RegisterCodeServerRoutes(router, os.Getenv("SANDBOX_CODESERVER_URL"))
+	handlers.RegisterMCPRoutes(router, browserService)
 
 	server := &http.Server{
 		Addr:              addr,
