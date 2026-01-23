@@ -22,8 +22,8 @@ paths:
             text/event-stream:
               schema:
                 type: string
-        '204':
-          description: No content for notifications
+        '202':
+          description: Accepted for notifications
   /mcp/sse:
     get:
       summary: MCP JSON-RPC SSE endpoint
@@ -41,8 +41,8 @@ paths:
             text/event-stream:
               schema:
                 type: string
-        '204':
-          description: No content for notifications
+        '202':
+          description: Accepted for notifications
 components:
   schemas:
     JsonRpcRequest:

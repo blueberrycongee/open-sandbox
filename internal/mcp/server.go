@@ -176,13 +176,13 @@ func (server *Server) ServeStdio(r io.Reader, w io.Writer) error {
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if wantsEventStream(r) {
-		server.serveStreamableHTTP(w, r)
-		return
-	}
 	resp, notify := server.handleHTTPRequest(r)
 	if notify {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	if wantsEventStream(r) {
+		writeSSE(w, resp)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -191,75 +191,10 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
 	resp, notify := server.handleSSERequest(r)
 	if notify {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 	writeSSE(w, resp)
-}
-
-func (server *Server) serveStreamableHTTP(w http.ResponseWriter, r *http.Request) {
-	if server.authErr != nil {
-		detail := NewErrorDetail(KindInternal, server.authErr.Error(), KindInternal)
-		writeSSE(w, NewErrorResponse(nil, ErrInternal, "internal error", detail))
-		return
-	}
-	if server.auth != nil {
-		if authErr := server.auth.ValidateRequest(r); authErr != nil {
-			writeSSE(w, NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr))
-			return
-		}
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.WriteHeader(http.StatusOK)
-
-	decoder := json.NewDecoder(bufio.NewReader(r.Body))
-
-	for {
-		var raw json.RawMessage
-		if err := decoder.Decode(&raw); err != nil {
-			if err == io.EOF {
-				return
-			}
-			detail := NewErrorDetail(KindInvalidRequest, "invalid request", KindInvalidRequest)
-			writeSSEMessage(w, NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail))
-			if flusher, ok := w.(http.Flusher); ok {
-				flusher.Flush()
-			}
-			return
-		}
-
-		var req Request
-		if err := json.Unmarshal(raw, &req); err != nil {
-			detail := NewErrorDetail(KindInvalidRequest, "invalid request", KindInvalidRequest)
-			writeSSEMessage(w, NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail))
-			if flusher, ok := w.(http.Flusher); ok {
-				flusher.Flush()
-			}
-			continue
-		}
-
-		parsed, err := ParseRequest(raw)
-		if err != nil {
-			detail := NewErrorDetail(KindInvalidRequest, err.Error(), KindInvalidRequest)
-			writeSSEMessage(w, NewErrorResponse(req.ID, ErrInvalidRequest, "invalid request", detail))
-			if flusher, ok := w.(http.Flusher); ok {
-				flusher.Flush()
-			}
-			continue
-		}
-
-		resp := server.HandleRequest(r.Context(), parsed)
-		if isNotification(parsed.ID) {
-			continue
-		}
-		writeSSEMessage(w, resp)
-		if flusher, ok := w.(http.Flusher); ok {
-			flusher.Flush()
-		}
-	}
 }
 
 func (server *Server) handleHTTPRequest(r *http.Request) (Response, bool) {
