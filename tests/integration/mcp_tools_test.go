@@ -76,7 +76,7 @@ func TestMCPToolCallsAndWorkspaceBoundary(t *testing.T) {
 		t.Fatalf("shell.exec error: %+v", execResp.Error)
 	}
 	execResult := mustMap(t, execResp.Result)
-	stdout, _ := execResult["Stdout"].(string)
+	stdout, _ := execResult["stdout"].(string)
 	if !strings.Contains(stdout, "test") {
 		t.Fatalf("expected stdout to contain %q, got %q", "test", stdout)
 	}

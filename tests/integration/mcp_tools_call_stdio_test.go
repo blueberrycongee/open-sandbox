@@ -95,7 +95,7 @@ func TestMCPToolsCallOverStdio(t *testing.T) {
 		t.Fatalf("tools/call shell.exec error: %+v", execResp.Error)
 	}
 	execResult := decodeToolResult(t, execResp)
-	stdout, _ := execResult["Stdout"].(string)
+	stdout, _ := execResult["stdout"].(string)
 	if !strings.Contains(stdout, "test") {
 		t.Fatalf("expected stdout to contain %q, got %q", "test", stdout)
 	}

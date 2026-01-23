@@ -10,9 +10,9 @@ import (
 const defaultCommandTimeout = 30 * time.Second
 
 type Result struct {
-	Stdout   string
-	Stderr   string
-	ExitCode int
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	ExitCode int    `json:"exit_code"`
 }
 
 func Exec(command string, args []string, workingDir string) (Result, error) {
