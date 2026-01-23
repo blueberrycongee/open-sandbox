@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
 
@@ -26,6 +27,8 @@ type Config struct {
 	RemoteDebuggingPort    int
 	ExistingWebSocketDebug string
 	StartupTimeout         time.Duration
+	NavigateTimeout        time.Duration
+	ScreenshotTimeout      time.Duration
 	Headless               bool
 }
 
@@ -50,6 +53,8 @@ func DefaultConfig() Config {
 		RemoteDebuggingHost: "127.0.0.1",
 		RemoteDebuggingPort: 9222,
 		StartupTimeout:      15 * time.Second,
+		NavigateTimeout:     15 * time.Second,
+		ScreenshotTimeout:   15 * time.Second,
 		Headless:            false,
 	}
 }
@@ -64,6 +69,12 @@ func NewService(config Config) *Service {
 	if config.StartupTimeout == 0 {
 		config.StartupTimeout = 15 * time.Second
 	}
+	if config.NavigateTimeout == 0 {
+		config.NavigateTimeout = 15 * time.Second
+	}
+	if config.ScreenshotTimeout == 0 {
+		config.ScreenshotTimeout = 15 * time.Second
+	}
 	return &Service{config: config}
 }
 
@@ -75,22 +86,7 @@ func (service *Service) Close() {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	if service.tabCancel != nil {
-		service.tabCancel()
-		service.tabCancel = nil
-	}
-	if service.allocCancel != nil {
-		service.allocCancel()
-		service.allocCancel = nil
-	}
-	service.allocCtx = nil
-	service.tabCtx = nil
-	service.cdpURL = ""
-	if service.cmd != nil && service.cmd.Process != nil {
-		_ = service.cmd.Process.Kill()
-		_, _ = service.cmd.Process.Wait()
-		service.cmd = nil
-	}
+	service.resetLocked()
 }
 
 func (service *Service) Info() (string, error) {
@@ -101,12 +97,12 @@ func (service *Service) Info() (string, error) {
 }
 
 func (service *Service) Navigate(url string) error {
-	if err := service.ensureStarted(); err != nil {
-		return err
-	}
-	service.mu.Lock()
-	defer service.mu.Unlock()
-	return chromedp.Run(service.tabCtx, chromedp.Navigate(url))
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			_, _, _, err := page.Navigate(url).Do(ctx)
+			return err
+		}))
+	})
 }
 
 func (service *Service) Screenshot(path string) error {
@@ -121,36 +117,34 @@ func (service *Service) Screenshot(path string) error {
 }
 
 func (service *Service) ScreenshotPNG() ([]byte, error) {
-	if err := service.ensureStarted(); err != nil {
-		return nil, err
-	}
-
-	service.mu.Lock()
-	defer service.mu.Unlock()
-
 	var buf []byte
-	if err := chromedp.Run(service.tabCtx, chromedp.CaptureScreenshot(&buf)); err != nil {
+	if err := service.runTabAction(service.config.ScreenshotTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.CaptureScreenshot(&buf))
+	}); err != nil {
 		return nil, err
 	}
 	return buf, nil
 }
 
 func (service *Service) Click(x, y float64) error {
-	if err := service.ensureStarted(); err != nil {
-		return err
-	}
-	service.mu.Lock()
-	defer service.mu.Unlock()
-	return chromedp.Run(service.tabCtx, chromedp.MouseClickXY(x, y))
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.MouseClickXY(x, y))
+	})
 }
 
 func (service *Service) ensureStarted() error {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	if service.tabCtx != nil {
+	return service.ensureStartedLocked()
+}
+
+func (service *Service) ensureStartedLocked() error {
+	if service.isTabHealthyLocked() {
 		return nil
 	}
+
+	service.resetLocked()
 
 	if service.config.ExistingWebSocketDebug != "" {
 		return service.connectRemote(service.config.ExistingWebSocketDebug)
@@ -248,6 +242,70 @@ func (service *Service) startChromeProcess(binary string, userDataDir string) er
 	}
 	service.cmd = cmd
 	return nil
+}
+
+func (service *Service) runTabAction(timeout time.Duration, action func(ctx context.Context) error) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	if err := service.ensureStartedLocked(); err != nil {
+		return err
+	}
+
+	err := runWithTimeout(service.tabCtx, timeout, action)
+	if err == nil {
+		return nil
+	}
+	if !isContextErr(err) {
+		return err
+	}
+
+	service.resetLocked()
+	if err := service.ensureStartedLocked(); err != nil {
+		return err
+	}
+	return runWithTimeout(service.tabCtx, timeout, action)
+}
+
+func runWithTimeout(parent context.Context, timeout time.Duration, action func(ctx context.Context) error) error {
+	if timeout <= 0 {
+		return action(parent)
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+	return action(ctx)
+}
+
+func isContextErr(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
+func (service *Service) isTabHealthyLocked() bool {
+	if service.tabCtx == nil {
+		return false
+	}
+	if err := service.tabCtx.Err(); err != nil {
+		return false
+	}
+	if service.cmd != nil && service.cmd.ProcessState != nil && service.cmd.ProcessState.Exited() {
+		return false
+	}
+	return true
+}
+
+func (service *Service) resetLocked() {
+	if service.tabCancel != nil {
+		service.tabCancel()
+		service.tabCancel = nil
+	}
+	if service.allocCancel != nil {
+		service.allocCancel()
+		service.allocCancel = nil
+	}
+	service.allocCtx = nil
+	service.tabCtx = nil
+	service.cdpURL = ""
+	service.stopChromeProcess()
 }
 
 func (service *Service) stopChromeProcess() {

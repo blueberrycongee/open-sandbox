@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"open-sandbox/internal/api"
@@ -36,6 +37,8 @@ func main() {
 		RemoteDebuggingHost:    getenv("SANDBOX_CDP_HOST", "127.0.0.1"),
 		RemoteDebuggingPort:    getenvInt("SANDBOX_CDP_PORT", 9222),
 		ExistingWebSocketDebug: os.Getenv("SANDBOX_BROWSER_CDP"),
+		NavigateTimeout:        getenvDurationSeconds("SANDBOX_BROWSER_NAV_TIMEOUT_SEC", 15*time.Second),
+		ScreenshotTimeout:      getenvDurationSeconds("SANDBOX_BROWSER_SCREENSHOT_TIMEOUT_SEC", 15*time.Second),
 		Headless:               getenvBool("SANDBOX_BROWSER_HEADLESS", false),
 	})
 	handlers.RegisterBrowserRoutes(router, browserService)
@@ -95,4 +98,16 @@ func getenvBool(key string, fallback bool) bool {
 	default:
 		return fallback
 	}
+}
+
+func getenvDurationSeconds(key string, fallback time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return time.Duration(value) * time.Second
 }
