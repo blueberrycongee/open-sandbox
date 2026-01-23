@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strings"
 )
 
 const (
@@ -71,16 +72,19 @@ func ValidateProtocolVersion(params json.RawMessage) error {
 	if len(params) == 0 {
 		return nil
 	}
-	var payload struct {
-		ProtocolVersion string `json:"protocol_version"`
-	}
+	var payload map[string]any
 	if err := json.Unmarshal(params, &payload); err != nil {
-		return errors.New("invalid params")
-	}
-	if payload.ProtocolVersion == "" {
 		return nil
 	}
-	if payload.ProtocolVersion != SupportedProtocolVersion {
+	raw, ok := payload["protocol_version"]
+	if !ok {
+		return nil
+	}
+	version, ok := raw.(string)
+	if !ok || strings.TrimSpace(version) == "" {
+		return errors.New("invalid protocol version")
+	}
+	if version != SupportedProtocolVersion {
 		return errors.New("unsupported protocol version")
 	}
 	return nil

@@ -22,6 +22,13 @@ func TestValidateProtocolVersionRejectsMismatch(t *testing.T) {
 	}
 }
 
+func TestValidateProtocolVersionSkipsNonObjectParams(t *testing.T) {
+	params := []byte(`["value"]`)
+	if err := mcp.ValidateProtocolVersion(params); err != nil {
+		t.Fatalf("expected non-object params to be ignored, got %v", err)
+	}
+}
+
 func TestUnifiedErrorSchemaIncludesTraceID(t *testing.T) {
 	id := json.RawMessage("1")
 	detail := mcp.NewErrorDetail("bad_request", "bad request", "bad_request")
