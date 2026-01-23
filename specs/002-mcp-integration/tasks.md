@@ -65,3 +65,13 @@
 - [x] T021 Update `README.md` with MCP usage and examples
 - [x] T022 Add MCP usage to `specs/open-sandbox-mvp/quickstart.md`
 - [x] T023 Add README NFR verification checklist (minimal deps, no breaking HTTP APIs, demo-ready single machine, strict TDD, SANDBOX_ROOT usage)
+
+---
+
+## Design Tradeoffs (Recorded)
+
+- HTTP status for JSON-RPC errors: keep 200 for application-level errors; use 4xx/5xx only for transport-level failures.
+- Protocol version enforcement: validate only when params are an object and include `protocol_version` (or for `mcp.capabilities`).
+- Notifications: do not return responses for `id: null` (HTTP 204 / empty SSE).
+- SSE response mode: single event per request; connection may close after one message.
+- Auth scope: JWT applies to MCP HTTP/SSE only; other MVP endpoints remain unauthenticated.
