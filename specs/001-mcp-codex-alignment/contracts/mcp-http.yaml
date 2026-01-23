@@ -1,0 +1,165 @@
+﻿openapi: 3.1.0
+info:
+  title: open-sandbox MCP HTTP
+  version: 1.0.0
+paths:
+  /mcp:
+    post:
+      summary: MCP JSON-RPC endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+      responses:
+        '200':
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonRpcResponse'
+        '204':
+          description: No content for notifications
+  /mcp/sse:
+    get:
+      summary: MCP JSON-RPC SSE endpoint
+      parameters:
+        - in: query
+          name: request
+          required: true
+          schema:
+            type: string
+          description: URL-encoded JSON-RPC request
+      responses:
+        '200':
+          description: SSE response with a single message event
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '204':
+          description: No content for notifications
+components:
+  schemas:
+    JsonRpcRequest:
+      type: object
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        id:
+          description: Omit or set null for notifications
+          nullable: true
+        method:
+          type: string
+          description: Standard methods include initialize, tools/list, tools/call. Tool methods like file.read are also supported.
+        params:
+          type: object
+          additionalProperties: true
+          description: For standard method shapes, see InitializeParams, ToolsListParams, and ToolsCallParams.
+    JsonRpcResponse:
+      type: object
+      required: [jsonrpc]
+      properties:
+        jsonrpc:
+          type: string
+          enum: ['2.0']
+        id:
+          nullable: true
+        result:
+          nullable: true
+        error:
+          $ref: '#/components/schemas/JsonRpcError'
+    JsonRpcError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        trace_id:
+          type: string
+        kind:
+          type: string
+    InitializeParams:
+      type: object
+      properties:
+        protocol_version:
+          type: string
+      additionalProperties: false
+    InitializeResult:
+      type: object
+      required: [protocol_version]
+      properties:
+        protocol_version:
+          type: string
+    ToolsListParams:
+      type: object
+      additionalProperties: false
+    ToolsListResult:
+      type: object
+      required: [tools]
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/ToolInfo'
+    ToolsCallParams:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        arguments:
+          type: object
+          additionalProperties: true
+    ToolCallResult:
+      type: object
+      required: [result]
+      properties:
+        result:
+          nullable: true
+    ToolInfo:
+      type: object
+      required: [name, version, permissions]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        permissions:
+          $ref: '#/components/schemas/PermissionMeta'
+        schema:
+          $ref: '#/components/schemas/ToolSchema'
+    PermissionMeta:
+      type: object
+      required: [allow, scope]
+      properties:
+        allow:
+          type: boolean
+        scope:
+          type: string
+        reason:
+          type: string
+    ToolSchema:
+      type: object
+      properties:
+        input:
+          type: object
+          additionalProperties: true
+        output:
+          type: object
+          additionalProperties: true
