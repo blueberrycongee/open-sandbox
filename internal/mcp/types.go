@@ -82,7 +82,7 @@ type InitializeCapabilities struct {
 }
 
 type InitializeToolsCapabilities struct {
-	ListChanged bool `json:"listChanged,omitempty"`
+	ListChanged bool `json:"listChanged"`
 }
 
 type InitializeServerInfo struct {
@@ -118,28 +118,30 @@ func ParseRequest(payload []byte) (Request, error) {
 }
 
 func ValidateProtocolVersion(params json.RawMessage) error {
+	_, _, err := extractProtocolVersion(params)
+	return err
+}
+
+func extractProtocolVersion(params json.RawMessage) (string, bool, error) {
 	if len(params) == 0 {
-		return nil
+		return "", false, nil
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(params, &payload); err != nil {
-		return nil
+		return "", false, nil
 	}
 	raw, ok := payload["protocolVersion"]
 	if !ok {
 		raw, ok = payload["protocol_version"]
 		if !ok {
-			return nil
+			return "", false, nil
 		}
 	}
 	version, ok := raw.(string)
 	if !ok || strings.TrimSpace(version) == "" {
-		return errors.New("invalid protocol version")
+		return "", true, errors.New("invalid protocol version")
 	}
-	if version != SupportedProtocolVersion {
-		return errors.New("unsupported protocol version")
-	}
-	return nil
+	return version, true, nil
 }
 
 func NewSuccessResponse(id json.RawMessage, result any) Response {

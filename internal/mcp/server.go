@@ -52,15 +52,15 @@ func (server *Server) HandleRequest(ctx context.Context, req Request) Response {
 }
 
 func (server *Server) handleInitialize(req Request) Response {
-	if len(req.Params) > 0 {
-		var params InitializeParams
-		if err := json.Unmarshal(req.Params, &params); err != nil {
-			detail := NewInvalidParamsDetail("invalid params")
-			return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
-		}
+	version := SupportedProtocolVersion
+	if parsed, ok, err := extractProtocolVersion(req.Params); err != nil {
+		detail := NewInvalidParamsDetail("invalid params")
+		return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
+	} else if ok {
+		version = parsed
 	}
 	return NewSuccessResponse(req.ID, InitializeResult{
-		ProtocolVersion: SupportedProtocolVersion,
+		ProtocolVersion: version,
 		Capabilities: InitializeCapabilities{
 			Tools: &InitializeToolsCapabilities{
 				ListChanged: false,

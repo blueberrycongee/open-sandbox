@@ -15,10 +15,10 @@ func TestParseRequestRejectsInvalidJSONRPC(t *testing.T) {
 	}
 }
 
-func TestValidateProtocolVersionRejectsMismatch(t *testing.T) {
+func TestValidateProtocolVersionAcceptsUnknownVersion(t *testing.T) {
 	params := []byte(`{"protocolVersion":"999.0"}`)
-	if err := mcp.ValidateProtocolVersion(params); err == nil {
-		t.Fatalf("expected protocol version mismatch error")
+	if err := mcp.ValidateProtocolVersion(params); err != nil {
+		t.Fatalf("expected protocol version to be accepted, got %v", err)
 	}
 }
 
