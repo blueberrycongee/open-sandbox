@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bufio"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -155,17 +156,17 @@ func TestMCPSSENotificationNoResponse(t *testing.T) {
 
 func parseSSEPayload(t *testing.T, resp *http.Response) mcp.Response {
 	t.Helper()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read body: %v", err)
-	}
-	lines := strings.Split(string(body), "\n")
+	scanner := bufio.NewScanner(resp.Body)
 	var dataLine string
-	for _, line := range lines {
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.HasPrefix(line, "data: ") {
 			dataLine = strings.TrimPrefix(line, "data: ")
 			break
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("read body: %v", err)
 	}
 	if dataLine == "" {
 		t.Fatalf("missing data line in sse response")

@@ -182,7 +182,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if wantsEventStream(r) {
-		writeSSE(w, resp)
+		writeSSE(w, resp, r.Context(), true)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -194,7 +194,7 @@ func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	writeSSE(w, resp)
+	writeSSE(w, resp, r.Context(), true)
 }
 
 func (server *Server) handleHTTPRequest(r *http.Request) (Response, bool) {
@@ -258,7 +258,7 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-func writeSSE(w http.ResponseWriter, resp Response) {
+func writeSSE(w http.ResponseWriter, resp Response, ctx context.Context, keepAlive bool) {
 	payload, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -270,6 +270,9 @@ func writeSSE(w http.ResponseWriter, resp Response) {
 	_, _ = w.Write([]byte("\n\n"))
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
+	}
+	if keepAlive && ctx != nil {
+		<-ctx.Done()
 	}
 }
 
