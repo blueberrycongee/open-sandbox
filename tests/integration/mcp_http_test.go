@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -126,5 +127,45 @@ func TestMCPHTTPAuthEnforced(t *testing.T) {
 	}
 	if authResp.Error != nil {
 		t.Fatalf("unexpected error: %+v", authResp.Error)
+	}
+}
+
+func TestMCPHTTPNotificationNoResponse(t *testing.T) {
+	t.Setenv("MCP_AUTH_ENABLED", "false")
+
+	router := api.NewRouter()
+	handlers.RegisterMCPRoutes(router, nil)
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	payload := map[string]any{
+		"jsonrpc": mcp.JSONRPCVersion,
+		"id":      nil,
+		"method":  "mcp.capabilities",
+		"params": map[string]any{
+			"protocol_version": mcp.SupportedProtocolVersion,
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	resp, err := http.Post(server.URL+"/mcp", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("http post: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("expected empty body, got %q", string(data))
 	}
 }

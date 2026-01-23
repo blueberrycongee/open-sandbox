@@ -113,6 +113,46 @@ func TestMCPSSEAuthEnforced(t *testing.T) {
 	}
 }
 
+func TestMCPSSENotificationNoResponse(t *testing.T) {
+	t.Setenv("MCP_AUTH_ENABLED", "false")
+
+	router := api.NewRouter()
+	handlers.RegisterMCPRoutes(router, nil)
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	payload := map[string]any{
+		"jsonrpc": mcp.JSONRPCVersion,
+		"id":      nil,
+		"method":  "mcp.capabilities",
+		"params": map[string]any{
+			"protocol_version": mcp.SupportedProtocolVersion,
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	resp, err := http.Get(server.URL + "/mcp/sse?request=" + url.QueryEscape(string(body)))
+	if err != nil {
+		t.Fatalf("http get: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if len(data) != 0 {
+		t.Fatalf("expected empty body, got %q", string(data))
+	}
+}
+
 func parseSSEPayload(t *testing.T, resp *http.Response) mcp.Response {
 	t.Helper()
 	body, err := io.ReadAll(resp.Body)

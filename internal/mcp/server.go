@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -81,12 +82,20 @@ func (server *Server) ServeStdio(r io.Reader, w io.Writer) error {
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resp := server.handleHTTPRequest(r)
+	resp, notify := server.handleHTTPRequest(r)
+	if notify {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
 func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
-	resp := server.handleSSERequest(r)
+	resp, notify := server.handleSSERequest(r)
+	if notify {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	payload, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -101,50 +110,59 @@ func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (server *Server) handleHTTPRequest(r *http.Request) Response {
+func (server *Server) handleHTTPRequest(r *http.Request) (Response, bool) {
 	if server.authErr != nil {
 		detail := NewErrorDetail(KindInternal, server.authErr.Error(), KindInternal)
-		return NewErrorResponse(nil, ErrInternal, "internal error", detail)
+		return NewErrorResponse(nil, ErrInternal, "internal error", detail), false
 	}
 	if server.auth != nil {
 		if authErr := server.auth.ValidateRequest(r); authErr != nil {
-			return NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr)
+			return NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr), false
 		}
 	}
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		detail := NewErrorDetail(KindInvalidRequest, "unable to read request", KindInvalidRequest)
-		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail)
+		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail), false
 	}
 	req, err := ParseRequest(payload)
 	if err != nil {
 		detail := NewErrorDetail(KindInvalidRequest, err.Error(), KindInvalidRequest)
-		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail)
+		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail), false
 	}
-	return server.HandleRequest(r.Context(), req)
+	resp := server.HandleRequest(r.Context(), req)
+	return resp, isNotification(req.ID)
 }
 
-func (server *Server) handleSSERequest(r *http.Request) Response {
+func (server *Server) handleSSERequest(r *http.Request) (Response, bool) {
 	if server.authErr != nil {
 		detail := NewErrorDetail(KindInternal, server.authErr.Error(), KindInternal)
-		return NewErrorResponse(nil, ErrInternal, "internal error", detail)
+		return NewErrorResponse(nil, ErrInternal, "internal error", detail), false
 	}
 	if server.auth != nil {
 		if authErr := server.auth.ValidateRequest(r); authErr != nil {
-			return NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr)
+			return NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr), false
 		}
 	}
 	payload := r.URL.Query().Get("request")
 	if payload == "" {
 		detail := NewErrorDetail(KindInvalidRequest, "missing request", KindInvalidRequest)
-		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail)
+		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail), false
 	}
 	req, err := ParseRequest([]byte(payload))
 	if err != nil {
 		detail := NewErrorDetail(KindInvalidRequest, err.Error(), KindInvalidRequest)
-		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail)
+		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail), false
 	}
-	return server.HandleRequest(r.Context(), req)
+	resp := server.HandleRequest(r.Context(), req)
+	return resp, isNotification(req.ID)
+}
+
+func isNotification(id json.RawMessage) bool {
+	if len(id) == 0 {
+		return true
+	}
+	return bytes.Equal(bytes.TrimSpace(id), []byte("null"))
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
