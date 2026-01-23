@@ -94,6 +94,8 @@ Environment Variables
 - `SANDBOX_CDP_HOST` (default `127.0.0.1`)
 - `SANDBOX_CDP_PORT` (default `9222`)
 - `SANDBOX_BROWSER_HEADLESS` (default `false`)
+- `SANDBOX_BROWSER_NAV_TIMEOUT_SEC` (default `15`, navigation timeout)
+- `SANDBOX_BROWSER_SCREENSHOT_TIMEOUT_SEC` (default `15`, screenshot timeout)
 - `SANDBOX_JUPYTER_URL` (reverse proxy target, e.g. `http://localhost:8888`)
 - `SANDBOX_CODESERVER_URL` (reverse proxy target, e.g. `http://localhost:8081`)
 - `MCP_AUTH_ENABLED` (default `false`)
