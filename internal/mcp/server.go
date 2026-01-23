@@ -176,13 +176,13 @@ func (server *Server) ServeStdio(r io.Reader, w io.Writer) error {
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if wantsEventStream(r) {
+		server.serveStreamableHTTP(w, r)
+		return
+	}
 	resp, notify := server.handleHTTPRequest(r)
 	if notify {
 		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	if wantsEventStream(r) {
-		writeSSE(w, resp)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -195,6 +195,71 @@ func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSSE(w, resp)
+}
+
+func (server *Server) serveStreamableHTTP(w http.ResponseWriter, r *http.Request) {
+	if server.authErr != nil {
+		detail := NewErrorDetail(KindInternal, server.authErr.Error(), KindInternal)
+		writeSSE(w, NewErrorResponse(nil, ErrInternal, "internal error", detail))
+		return
+	}
+	if server.auth != nil {
+		if authErr := server.auth.ValidateRequest(r); authErr != nil {
+			writeSSE(w, NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr))
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	decoder := json.NewDecoder(bufio.NewReader(r.Body))
+
+	for {
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			if err == io.EOF {
+				return
+			}
+			detail := NewErrorDetail(KindInvalidRequest, "invalid request", KindInvalidRequest)
+			writeSSEMessage(w, NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail))
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			return
+		}
+
+		var req Request
+		if err := json.Unmarshal(raw, &req); err != nil {
+			detail := NewErrorDetail(KindInvalidRequest, "invalid request", KindInvalidRequest)
+			writeSSEMessage(w, NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail))
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			continue
+		}
+
+		parsed, err := ParseRequest(raw)
+		if err != nil {
+			detail := NewErrorDetail(KindInvalidRequest, err.Error(), KindInvalidRequest)
+			writeSSEMessage(w, NewErrorResponse(req.ID, ErrInvalidRequest, "invalid request", detail))
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			continue
+		}
+
+		resp := server.HandleRequest(r.Context(), parsed)
+		if isNotification(parsed.ID) {
+			continue
+		}
+		writeSSEMessage(w, resp)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+	}
 }
 
 func (server *Server) handleHTTPRequest(r *http.Request) (Response, bool) {
@@ -259,18 +324,22 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 }
 
 func writeSSE(w http.ResponseWriter, resp Response) {
-	payload, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
+	writeSSEMessage(w, resp)
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func writeSSEMessage(w io.Writer, resp Response) {
+	payload, _ := json.Marshal(resp)
 	_, _ = w.Write([]byte("event: message\n"))
 	_, _ = w.Write([]byte("data: "))
 	_, _ = w.Write(payload)
 	_, _ = w.Write([]byte("\n\n"))
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
 }
 
 func wantsEventStream(r *http.Request) bool {
