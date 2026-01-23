@@ -64,15 +64,35 @@ func (server *Server) ServeStdio(r io.Reader, w io.Writer) error {
 	encoder := json.NewEncoder(w)
 
 	for {
-		var req Request
-		if err := decoder.Decode(&req); err != nil {
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return err
 		}
-		resp := server.HandleRequest(context.Background(), req)
-		if len(req.ID) == 0 || string(req.ID) == "null" {
+		var req Request
+		if err := json.Unmarshal(raw, &req); err != nil {
+			detail := NewErrorDetail(KindInvalidRequest, "invalid request", KindInvalidRequest)
+			resp := NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail)
+			if err := encoder.Encode(resp); err != nil {
+				return err
+			}
+			continue
+		}
+
+		parsed, err := ParseRequest(raw)
+		if err != nil {
+			detail := NewErrorDetail(KindInvalidRequest, err.Error(), KindInvalidRequest)
+			resp := NewErrorResponse(req.ID, ErrInvalidRequest, "invalid request", detail)
+			if err := encoder.Encode(resp); err != nil {
+				return err
+			}
+			continue
+		}
+
+		resp := server.HandleRequest(context.Background(), parsed)
+		if isNotification(parsed.ID) {
 			continue
 		}
 		if err := encoder.Encode(resp); err != nil {
