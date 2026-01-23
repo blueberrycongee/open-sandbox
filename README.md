@@ -64,6 +64,23 @@ Example JSON-RPC payload:
 }
 ```
 
+Codex MCP Setup (HTTP)
+----------------------
+1) Start the server: `go run ./cmd/server`
+2) Open `~/.codex/config.toml` and add:
+```
+[mcp_servers.open_sandbox]
+url = "http://localhost:8080/mcp"
+tool_timeout_sec = 60
+```
+3) If MCP auth is enabled, export a bearer token and add:
+```
+[mcp_servers.open_sandbox]
+bearer_token_env_var = "MCP_AUTH_TOKEN"
+```
+4) In Codex, open the MCP panel (`/mcp`) and verify `open_sandbox` is connected.
+
+
 Environment Variables
 ---------------------
 - `SANDBOX_ADDR` (default `:8080`)
