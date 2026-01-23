@@ -135,13 +135,22 @@ components:
           additionalProperties: true
     ToolCallResult:
       type: object
-      required: [result]
+      required: [content]
       properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlock'
+        structuredContent:
+          nullable: true
+        isError:
+          type: boolean
         result:
           nullable: true
+          description: Legacy field retained for backward compatibility.
     ToolInfo:
       type: object
-      required: [name, version, permissions]
+      required: [name, version, permissions, inputSchema]
       properties:
         name:
           type: string
@@ -149,8 +158,22 @@ components:
           type: string
         permissions:
           $ref: '#/components/schemas/PermissionMeta'
+        inputSchema:
+          type: object
+          additionalProperties: true
+        outputSchema:
+          type: object
+          additionalProperties: true
         schema:
           $ref: '#/components/schemas/ToolSchema'
+    ContentBlock:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+        text:
+          type: string
     PermissionMeta:
       type: object
       required: [allow, scope]

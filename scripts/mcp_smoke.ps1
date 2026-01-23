@@ -44,8 +44,8 @@ Assert-NoError -Response $writeResp -Context "tools/call file.write"
 Write-Host "[HTTP] tools/call file.read"
 $readResp = Invoke-McpHttp -Method "tools/call" -Params @{ name = "file.read"; arguments = @{ path = "mcp-smoke-script.txt" } } -Id 4
 Assert-NoError -Response $readResp -Context "tools/call file.read"
-if ($readResp.result.result.content -ne "smoke") {
-  throw "MCP file.read returned unexpected content: $($readResp.result.result.content)"
+if ($readResp.result.structuredContent.content -ne "smoke") {
+  throw "MCP file.read returned unexpected content: $($readResp.result.structuredContent.content)"
 }
 
 Write-Host "[STDIO] initialize/tools/list/tools/call"
@@ -73,8 +73,8 @@ $stdioWrite = $lines[2] | ConvertFrom-Json
 Assert-NoError -Response $stdioWrite -Context "stdio tools/call file.write"
 $stdioRead = $lines[3] | ConvertFrom-Json
 Assert-NoError -Response $stdioRead -Context "stdio tools/call file.read"
-if ($stdioRead.result.result.content -ne "smoke") {
-  throw "STDIO file.read returned unexpected content: $($stdioRead.result.result.content)"
+if ($stdioRead.result.structuredContent.content -ne "smoke") {
+  throw "STDIO file.read returned unexpected content: $($stdioRead.result.structuredContent.content)"
 }
 
 Write-Host "MCP smoke test passed (HTTP + STDIO)"

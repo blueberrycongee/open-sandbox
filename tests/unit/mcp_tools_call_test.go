@@ -50,7 +50,10 @@ func TestToolsCallRoutesToHandler(t *testing.T) {
 	if err := json.Unmarshal(resultBytes, &callResult); err != nil {
 		t.Fatalf("unmarshal tools/call result: %v", err)
 	}
-	payloadBytes, err := json.Marshal(callResult.Result)
+	if callResult.StructuredContent == nil {
+		t.Fatalf("expected structuredContent to be present")
+	}
+	payloadBytes, err := json.Marshal(callResult.StructuredContent)
 	if err != nil {
 		t.Fatalf("marshal tool result: %v", err)
 	}

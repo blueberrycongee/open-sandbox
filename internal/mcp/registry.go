@@ -24,10 +24,12 @@ type Tool struct {
 }
 
 type ToolInfo struct {
-	Name        string         `json:"name"`
-	Version     string         `json:"version"`
-	Permissions PermissionMeta `json:"permissions"`
-	Schema      ToolSchema     `json:"schema,omitempty"`
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
+	Permissions  PermissionMeta `json:"permissions"`
+	InputSchema  JSONSchema     `json:"inputSchema"`
+	OutputSchema JSONSchema     `json:"outputSchema,omitempty"`
+	Schema       ToolSchema     `json:"schema,omitempty"`
 }
 
 type Registry struct {
@@ -57,15 +59,41 @@ func (registry *Registry) List() []ToolInfo {
 	defer registry.mu.RUnlock()
 	infos := make([]ToolInfo, 0, len(registry.tools))
 	for _, tool := range registry.tools {
+		inputSchema := normalizeSchema(tool.Schema.Input)
+		outputSchema := normalizeOptionalSchema(tool.Schema.Output)
 		infos = append(infos, ToolInfo{
-			Name:        tool.Name,
-			Version:     tool.Version,
-			Permissions: tool.Permissions,
-			Schema:      tool.Schema,
+			Name:         tool.Name,
+			Version:      tool.Version,
+			Permissions:  tool.Permissions,
+			InputSchema:  inputSchema,
+			OutputSchema: outputSchema,
+			Schema:       tool.Schema,
 		})
 	}
 	sort.Slice(infos, func(i, j int) bool {
 		return infos[i].Name < infos[j].Name
 	})
 	return infos
+}
+
+func normalizeSchema(schema JSONSchema) JSONSchema {
+	if schema == nil || len(schema) == 0 {
+		return JSONSchema{"type": "object"}
+	}
+	if _, ok := schema["type"]; ok {
+		return schema
+	}
+	clone := make(JSONSchema, len(schema)+1)
+	for key, value := range schema {
+		clone[key] = value
+	}
+	clone["type"] = "object"
+	return clone
+}
+
+func normalizeOptionalSchema(schema JSONSchema) JSONSchema {
+	if schema == nil || len(schema) == 0 {
+		return nil
+	}
+	return normalizeSchema(schema)
 }

@@ -96,7 +96,7 @@ func TestMCPDiscoveryOverStdio(t *testing.T) {
 	if listResult.Tools[0].Name != "file.read" {
 		t.Fatalf("expected file.read tool, got %q", listResult.Tools[0].Name)
 	}
-	if len(listResult.Tools[0].Schema.Input) == 0 {
+	if len(listResult.Tools[0].InputSchema) == 0 {
 		t.Fatalf("expected input schema to be present")
 	}
 }

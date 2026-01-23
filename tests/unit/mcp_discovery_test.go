@@ -78,7 +78,7 @@ func TestStandardDiscoveryMethods(t *testing.T) {
 	if len(listResult.Tools) != 1 {
 		t.Fatalf("expected 1 tool, got %d", len(listResult.Tools))
 	}
-	if len(listResult.Tools[0].Schema.Input) == 0 {
-		t.Fatalf("expected schema input to be present")
+	if len(listResult.Tools[0].InputSchema) == 0 {
+		t.Fatalf("expected input schema to be present")
 	}
 }

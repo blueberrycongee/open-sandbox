@@ -94,13 +94,21 @@ type ToolsListResult struct {
 	Tools []ToolInfo `json:"tools"`
 }
 
+type ContentBlock struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+}
+
 type ToolCallParams struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments,omitempty"`
 }
 
 type ToolCallResult struct {
-	Result any `json:"result"`
+	Content           []ContentBlock `json:"content"`
+	StructuredContent any            `json:"structuredContent,omitempty"`
+	IsError           *bool          `json:"isError,omitempty"`
+	Result            any            `json:"result,omitempty"`
 }
 
 func ParseRequest(payload []byte) (Request, error) {

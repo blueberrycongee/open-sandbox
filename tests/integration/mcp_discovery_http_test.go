@@ -64,7 +64,7 @@ func TestMCPDiscoveryOverHTTP(t *testing.T) {
 	if fileTool.Version == "" {
 		t.Fatalf("expected file.read version to be set")
 	}
-	if len(fileTool.Schema.Input) == 0 {
+	if len(fileTool.InputSchema) == 0 {
 		t.Fatalf("expected file.read input schema to be present")
 	}
 }

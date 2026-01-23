@@ -112,7 +112,7 @@ func (server *Server) handleToolInvocation(ctx context.Context, id json.RawMessa
 		return toolErrorResponse(id, toolErr)
 	}
 	if wrapResult {
-		return NewSuccessResponse(id, ToolCallResult{Result: result})
+		return NewSuccessResponse(id, newToolCallResult(result))
 	}
 	return NewSuccessResponse(id, result)
 }
@@ -130,6 +130,22 @@ func toolErrorResponse(id json.RawMessage, toolErr *ErrorDetail) Response {
 		return NewErrorResponse(id, ErrForbidden, "forbidden", *toolErr)
 	default:
 		return NewErrorResponse(id, ErrToolExecution, "tool error", *toolErr)
+	}
+}
+
+func newToolCallResult(result any) ToolCallResult {
+	content := []ContentBlock{}
+	if result != nil {
+		if text, ok := result.(string); ok {
+			content = append(content, ContentBlock{Type: "text", Text: text})
+		} else if payload, err := json.Marshal(result); err == nil {
+			content = append(content, ContentBlock{Type: "text", Text: string(payload)})
+		}
+	}
+	return ToolCallResult{
+		Content:           content,
+		StructuredContent: result,
+		Result:            result,
 	}
 }
 
