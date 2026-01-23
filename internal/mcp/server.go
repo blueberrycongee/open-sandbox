@@ -58,7 +58,18 @@ func (server *Server) handleInitialize(req Request) Response {
 			return NewErrorResponse(req.ID, ErrInvalidParams, "invalid params", detail)
 		}
 	}
-	return NewSuccessResponse(req.ID, InitializeResult{ProtocolVersion: SupportedProtocolVersion})
+	return NewSuccessResponse(req.ID, InitializeResult{
+		ProtocolVersion: SupportedProtocolVersion,
+		Capabilities: InitializeCapabilities{
+			Tools: &InitializeToolsCapabilities{
+				ListChanged: false,
+			},
+		},
+		ServerInfo: InitializeServerInfo{
+			Name:    ServerName,
+			Version: ServerVersion,
+		},
+	})
 }
 
 func (server *Server) handleToolsList(req Request) Response {

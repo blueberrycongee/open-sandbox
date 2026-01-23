@@ -97,15 +97,19 @@ components:
     InitializeParams:
       type: object
       properties:
-        protocol_version:
+        protocolVersion:
           type: string
       additionalProperties: false
     InitializeResult:
       type: object
-      required: [protocol_version]
+      required: [protocolVersion, capabilities, serverInfo]
       properties:
-        protocol_version:
+        protocolVersion:
           type: string
+        capabilities:
+          $ref: '#/components/schemas/InitializeCapabilities'
+        serverInfo:
+          $ref: '#/components/schemas/InitializeServerInfo'
     ToolsListParams:
       type: object
       additionalProperties: false
@@ -163,3 +167,21 @@ components:
         output:
           type: object
           additionalProperties: true
+    InitializeCapabilities:
+      type: object
+      properties:
+        tools:
+          $ref: '#/components/schemas/InitializeToolsCapabilities'
+    InitializeToolsCapabilities:
+      type: object
+      properties:
+        listChanged:
+          type: boolean
+    InitializeServerInfo:
+      type: object
+      required: [name, version]
+      properties:
+        name:
+          type: string
+        version:
+          type: string

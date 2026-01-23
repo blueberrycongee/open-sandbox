@@ -48,7 +48,7 @@ func TestMCPSmokeStdio(t *testing.T) {
 	}
 
 	initReq := buildRawRequest(t, mcp.MethodInitialize, map[string]any{
-		"protocol_version": mcp.SupportedProtocolVersion,
+		"protocolVersion": mcp.SupportedProtocolVersion,
 	}, json.RawMessage("1"))
 	listReq := buildRawRequest(t, mcp.MethodToolsList, map[string]any{}, json.RawMessage("2"))
 	writeReq := buildRawRequest(t, mcp.MethodToolsCall, map[string]any{

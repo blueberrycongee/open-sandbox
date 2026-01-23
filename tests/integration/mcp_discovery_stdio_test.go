@@ -34,7 +34,7 @@ func TestMCPDiscoveryOverStdio(t *testing.T) {
 	server := mcp.NewServer(registry, nil, nil)
 
 	initReq := buildRawRequest(t, mcp.MethodInitialize, map[string]any{
-		"protocol_version": mcp.SupportedProtocolVersion,
+		"protocolVersion": mcp.SupportedProtocolVersion,
 	}, json.RawMessage("1"))
 	listReq := buildRawRequest(t, mcp.MethodToolsList, map[string]any{}, json.RawMessage("2"))
 
@@ -67,6 +67,12 @@ func TestMCPDiscoveryOverStdio(t *testing.T) {
 	}
 	if initResult.ProtocolVersion != mcp.SupportedProtocolVersion {
 		t.Fatalf("expected protocol version %q, got %q", mcp.SupportedProtocolVersion, initResult.ProtocolVersion)
+	}
+	if initResult.ServerInfo.Name == "" || initResult.ServerInfo.Version == "" {
+		t.Fatalf("expected serverInfo to be populated")
+	}
+	if initResult.Capabilities.Tools == nil {
+		t.Fatalf("expected capabilities.tools to be present")
 	}
 
 	var listResp mcp.Response

@@ -11,6 +11,8 @@ import (
 const (
 	JSONRPCVersion           = "2.0"
 	SupportedProtocolVersion = "1.0"
+	ServerName               = "open-sandbox"
+	ServerVersion            = "dev"
 	MethodCapabilities       = "mcp.capabilities"
 	MethodInitialize         = "initialize"
 	MethodToolsList          = "tools/list"
@@ -66,11 +68,26 @@ type ErrorDetail struct {
 }
 
 type InitializeParams struct {
-	ProtocolVersion string `json:"protocol_version,omitempty"`
+	ProtocolVersion string `json:"protocolVersion,omitempty"`
 }
 
 type InitializeResult struct {
-	ProtocolVersion string `json:"protocol_version"`
+	ProtocolVersion string                 `json:"protocolVersion"`
+	Capabilities    InitializeCapabilities `json:"capabilities"`
+	ServerInfo      InitializeServerInfo   `json:"serverInfo"`
+}
+
+type InitializeCapabilities struct {
+	Tools *InitializeToolsCapabilities `json:"tools,omitempty"`
+}
+
+type InitializeToolsCapabilities struct {
+	ListChanged bool `json:"listChanged,omitempty"`
+}
+
+type InitializeServerInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
 type ToolsListResult struct {
@@ -108,9 +125,12 @@ func ValidateProtocolVersion(params json.RawMessage) error {
 	if err := json.Unmarshal(params, &payload); err != nil {
 		return nil
 	}
-	raw, ok := payload["protocol_version"]
+	raw, ok := payload["protocolVersion"]
 	if !ok {
-		return nil
+		raw, ok = payload["protocol_version"]
+		if !ok {
+			return nil
+		}
 	}
 	version, ok := raw.(string)
 	if !ok || strings.TrimSpace(version) == "" {

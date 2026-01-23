@@ -17,7 +17,7 @@ func TestMCPSmokeHTTP(t *testing.T) {
 	server := newMCPTestServer(t)
 
 	initBody := buildMCPRequest(t, mcp.MethodInitialize, map[string]any{
-		"protocol_version": mcp.SupportedProtocolVersion,
+		"protocolVersion": mcp.SupportedProtocolVersion,
 	})
 	initResp := postMCPRequest(t, server.URL, initBody)
 	if initResp.Error != nil {

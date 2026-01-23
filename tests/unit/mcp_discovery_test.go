@@ -33,7 +33,7 @@ func TestStandardDiscoveryMethods(t *testing.T) {
 		JSONRPC: mcp.JSONRPCVersion,
 		ID:      json.RawMessage("1"),
 		Method:  mcp.MethodInitialize,
-		Params:  json.RawMessage(`{"protocol_version":"1.0"}`),
+		Params:  json.RawMessage(`{"protocolVersion":"1.0"}`),
 	}
 	initResp := server.HandleRequest(context.Background(), initReq)
 	if initResp.Error != nil {
@@ -49,6 +49,12 @@ func TestStandardDiscoveryMethods(t *testing.T) {
 	}
 	if initResult.ProtocolVersion != mcp.SupportedProtocolVersion {
 		t.Fatalf("expected protocol version %q, got %q", mcp.SupportedProtocolVersion, initResult.ProtocolVersion)
+	}
+	if initResult.ServerInfo.Name == "" || initResult.ServerInfo.Version == "" {
+		t.Fatalf("expected serverInfo to be populated")
+	}
+	if initResult.Capabilities.Tools == nil {
+		t.Fatalf("expected capabilities.tools to be present")
 	}
 
 	listReq := mcp.Request{
