@@ -10,6 +10,7 @@ import (
 	"open-sandbox/internal/browser"
 	"open-sandbox/internal/config"
 	"open-sandbox/internal/mcp"
+	"open-sandbox/internal/mcp/remote"
 )
 
 func main() {
@@ -32,7 +33,11 @@ func main() {
 	browserConfig.DownloadDir = getenv("SANDBOX_BROWSER_DOWNLOAD_DIR", filepath.Join(config.WorkspacePath(), "Downloads"))
 
 	browserService := browser.NewService(browserConfig)
-	registry := handlers.NewMCPRegistry(browserService)
+	remoteManager, err := remote.NewManager(config.MCPServersPath())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "external mcp config load failed: %v\n", err)
+	}
+	registry := handlers.NewMCPRegistry(browserService, remoteManager)
 	server := mcp.NewServer(registry, nil, nil)
 
 	if err := server.ServeStdio(os.Stdin, os.Stdout); err != nil {

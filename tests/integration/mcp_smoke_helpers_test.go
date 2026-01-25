@@ -18,7 +18,7 @@ func newMCPTestServer(t *testing.T) *httptest.Server {
 	t.Setenv("MCP_AUTH_ENABLED", "false")
 
 	router := api.NewRouter()
-	handlers.RegisterMCPRoutes(router, nil)
+	handlers.RegisterMCPRoutes(router, nil, nil)
 
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)

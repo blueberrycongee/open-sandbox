@@ -53,6 +53,37 @@ Browser API Highlights
 - `POST /v1/browser/actions` accepts unified action payloads (`MOVE_TO`, `CLICK`, `SCROLL`, `TYPING`, `WAIT`, etc.).
 - `POST /v1/browser/config` supports `resolution` to standardize viewport size.
 
+External MCP Connectors
+-----------------------
+open-sandbox can proxy tools from external MCP servers (Claude-style connector model).
+
+Config storage:
+- Default file: `<SANDBOX_CACHE_ROOT>/mcp-servers.json`
+- Override with `SANDBOX_MCP_EXTERNAL_CONFIG`
+
+Tool namespace:
+- Tools are exposed as `ext.<server_name>.<tool_name>` to avoid conflicts.
+
+Connector management endpoints:
+- `GET /v1/mcp/servers` (list)
+- `POST /v1/mcp/servers` (create/upsert)
+- `GET /v1/mcp/servers/{name}` (read)
+- `PUT /v1/mcp/servers/{name}` (update)
+- `DELETE /v1/mcp/servers/{name}` (delete)
+- `POST /v1/mcp/servers/refresh` (refresh all tools)
+- `POST /v1/mcp/servers/{name}/refresh` (refresh tools for one server)
+
+Example connector payload:
+```json
+{
+  "name": "mcdonalds",
+  "url": "https://example.com/mcp",
+  "transport": "http",
+  "authorization_token": "YOUR_TOKEN",
+  "tool_allow": ["menu.list", "order.create"]
+}
+```
+
 MCP Integration
 ---------------
 - HTTP JSON-RPC: `POST /mcp`
@@ -103,6 +134,7 @@ Environment Variables
 - `SANDBOX_BROWSER_DOWNLOAD_DIR` (default `<SANDBOX_WORKSPACE>/Downloads`)
 - `SANDBOX_BROWSER_NAV_TIMEOUT_SEC` (default `15`, navigation timeout)
 - `SANDBOX_BROWSER_SCREENSHOT_TIMEOUT_SEC` (default `15`, screenshot timeout)
+- `SANDBOX_MCP_EXTERNAL_CONFIG` (path to external MCP config json; defaults to `<SANDBOX_CACHE_ROOT>/mcp-servers.json`)
 - `SANDBOX_JUPYTER_URL` (reverse proxy target, e.g. `http://localhost:8888`)
 - `SANDBOX_CODESERVER_URL` (reverse proxy target, e.g. `http://localhost:8081`)
 - `MCP_AUTH_ENABLED` (default `false`)

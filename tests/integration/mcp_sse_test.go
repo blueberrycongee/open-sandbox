@@ -21,7 +21,7 @@ func TestMCPSSEEndpoint(t *testing.T) {
 	t.Setenv("MCP_AUTH_ENABLED", "false")
 
 	router := api.NewRouter()
-	handlers.RegisterMCPRoutes(router, nil)
+	handlers.RegisterMCPRoutes(router, nil, nil)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -60,7 +60,7 @@ func TestMCPSSEAuthEnforced(t *testing.T) {
 	t.Setenv("MCP_AUTH_JWT_SECRET", "secret")
 
 	router := api.NewRouter()
-	handlers.RegisterMCPRoutes(router, nil)
+	handlers.RegisterMCPRoutes(router, nil, nil)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -118,7 +118,7 @@ func TestMCPSSENotificationNoResponse(t *testing.T) {
 	t.Setenv("MCP_AUTH_ENABLED", "false")
 
 	router := api.NewRouter()
-	handlers.RegisterMCPRoutes(router, nil)
+	handlers.RegisterMCPRoutes(router, nil, nil)
 
 	server := httptest.NewServer(router)
 	defer server.Close()

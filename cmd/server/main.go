@@ -13,6 +13,7 @@ import (
 	"open-sandbox/internal/api/handlers"
 	"open-sandbox/internal/browser"
 	"open-sandbox/internal/config"
+	"open-sandbox/internal/mcp/remote"
 )
 
 func main() {
@@ -49,7 +50,11 @@ func main() {
 	handlers.RegisterCodeExecRoutes(router)
 	handlers.RegisterJupyterRoutes(router, os.Getenv("SANDBOX_JUPYTER_URL"))
 	handlers.RegisterCodeServerRoutes(router, os.Getenv("SANDBOX_CODESERVER_URL"))
-	handlers.RegisterMCPRoutes(router, browserService)
+	remoteManager, err := remote.NewManager(config.MCPServersPath())
+	if err != nil {
+		log.Printf("external mcp config load failed: %v", err)
+	}
+	handlers.RegisterMCPRoutes(router, browserService, remoteManager)
 
 	server := &http.Server{
 		Addr:              addr,

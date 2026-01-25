@@ -17,7 +17,7 @@ func TestMCPStreamableHTTPResponse(t *testing.T) {
 	t.Setenv("MCP_AUTH_ENABLED", "false")
 
 	router := api.NewRouter()
-	handlers.RegisterMCPRoutes(router, nil)
+	handlers.RegisterMCPRoutes(router, nil, nil)
 
 	server := httptest.NewServer(router)
 	defer server.Close()

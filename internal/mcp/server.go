@@ -134,6 +134,12 @@ func toolErrorResponse(id json.RawMessage, toolErr *ErrorDetail) Response {
 }
 
 func newToolCallResult(result any) ToolCallResult {
+	if payload, ok := result.(ToolCallResult); ok {
+		return payload
+	}
+	if payload, ok := result.(*ToolCallResult); ok && payload != nil {
+		return *payload
+	}
 	content := []ContentBlock{}
 	if result != nil {
 		if text, ok := result.(string); ok {

@@ -24,7 +24,7 @@ func TestMCPToolCallsAndWorkspaceBoundary(t *testing.T) {
 	}
 
 	router := api.NewRouter()
-	handlers.RegisterMCPRoutes(router, nil)
+	handlers.RegisterMCPRoutes(router, nil, nil)
 	server := httptest.NewServer(router)
 	defer server.Close()
 

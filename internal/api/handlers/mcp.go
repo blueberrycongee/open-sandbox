@@ -1,15 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 
 	"open-sandbox/internal/api"
 	"open-sandbox/internal/browser"
 	"open-sandbox/internal/mcp"
+	"open-sandbox/internal/mcp/remote"
 	"open-sandbox/internal/mcp/tools"
 )
 
-func NewMCPRegistry(browserService *browser.Service) *mcp.Registry {
+func NewMCPRegistry(browserService *browser.Service, remoteManager *remote.Manager) *mcp.Registry {
 	registry := mcp.NewRegistry()
 	browserNavigateSchema := mcp.ToolSchema{
 		Input: mcp.JSONSchema{
@@ -569,11 +571,14 @@ func NewMCPRegistry(browserService *browser.Service) *mcp.Registry {
 		Schema:  codeExecSchema,
 		Handler: tools.CodeExec(),
 	})
+	if remoteManager != nil {
+		_ = remoteManager.SyncRegistry(context.Background(), registry)
+	}
 	return registry
 }
 
-func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
-	registry := NewMCPRegistry(browserService)
+func RegisterMCPRoutes(router *api.Router, browserService *browser.Service, remoteManager *remote.Manager) {
+	registry := NewMCPRegistry(browserService, remoteManager)
 
 	auth, authErr := mcp.NewAuthenticator(mcp.LoadAuthConfig())
 	server := mcp.NewServer(registry, auth, authErr)
@@ -586,4 +591,7 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service) {
 		server.ServeSSE(w, r)
 		return nil
 	})
+	if remoteManager != nil {
+		RegisterExternalMCPRoutes(router, remoteManager, registry)
+	}
 }

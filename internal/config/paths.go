@@ -43,6 +43,13 @@ func CachePath() string {
 	return normalizeAbs(filepath.Join(RootPath(), ".cache"))
 }
 
+func MCPServersPath() string {
+	if value := envPath("SANDBOX_MCP_EXTERNAL_CONFIG"); value != "" {
+		return value
+	}
+	return normalizeAbs(filepath.Join(CachePath(), "mcp-servers.json"))
+}
+
 func LogsPath() string {
 	if value := envPath("SANDBOX_LOGS_ROOT"); value != "" {
 		return value
