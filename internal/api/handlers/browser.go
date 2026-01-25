@@ -65,6 +65,10 @@ type pressKeyRequest struct {
 	Keys string `json:"keys"`
 }
 
+type browserConfigRequest struct {
+	Resolution *browser.Resolution `json:"resolution"`
+}
+
 type actionEnvelope struct {
 	ActionType string `json:"action_type"`
 }
@@ -166,6 +170,7 @@ func RegisterBrowserRoutes(router *api.Router, service *browser.Service) {
 	router.Handle(http.MethodGet, "/v1/browser/get_download_list", BrowserDownloadListHandler(service))
 	router.Handle(http.MethodPost, "/v1/browser/press_key", BrowserPressKeyHandler(service))
 	router.Handle(http.MethodPost, "/v1/browser/actions", BrowserActionsHandler(service))
+	router.Handle(http.MethodPost, "/v1/browser/config", BrowserConfigHandler(service))
 }
 
 func BrowserInfoHandler(service *browser.Service) api.HandlerFunc {
@@ -504,6 +509,24 @@ func BrowserActionsHandler(service *browser.Service) api.HandlerFunc {
 			"action_performed": actionName,
 		}
 		if err := api.WriteJSON(w, http.StatusOK, types.Ok(payload)); err != nil {
+			return api.NewAppError(api.CodeInternalError, "internal error", http.StatusInternalServerError)
+		}
+		return nil
+	}
+}
+
+func BrowserConfigHandler(service *browser.Service) api.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
+		var req browserConfigRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
+		}
+		if req.Resolution != nil {
+			if err := service.SetResolution(req.Resolution.Width, req.Resolution.Height); err != nil {
+				return api.NewAppError("config_failed", err.Error(), http.StatusInternalServerError)
+			}
+		}
+		if err := api.WriteJSON(w, http.StatusOK, types.Ok(map[string]any{"configured": true})); err != nil {
 			return api.NewAppError(api.CodeInternalError, "internal error", http.StatusInternalServerError)
 		}
 		return nil

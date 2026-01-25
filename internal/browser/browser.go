@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/browser"
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
@@ -81,6 +82,11 @@ type DownloadInfo struct {
 	TotalBytes    float64   `json:"total_bytes"`
 	StartedAt     time.Time `json:"started_at"`
 	FinishedAt    time.Time `json:"finished_at"`
+}
+
+type Resolution struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }
 
 func DefaultConfig() Config {
@@ -342,6 +348,20 @@ func (service *Service) Hotkey(keys []string) error {
 			}))
 		}
 		return chromedp.Run(ctx, actions...)
+	})
+}
+
+func (service *Service) SetResolution(width, height int) error {
+	if width <= 0 || height <= 0 {
+		return errors.New("invalid resolution")
+	}
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			return emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1, false).
+				WithScreenWidth(int64(width)).
+				WithScreenHeight(int64(height)).
+				Do(ctx)
+		}))
 	})
 }
 
