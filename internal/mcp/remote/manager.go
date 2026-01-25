@@ -17,16 +17,25 @@ type Manager struct {
 	mu             sync.Mutex
 	path           string
 	servers        map[string]ServerConfig
-	registeredTool map[string]struct{}
-	client         *Client
+	registeredTool map[string]map[string]struct{}
+	client         ToolClient
 }
 
 func NewManager(path string) (*Manager, error) {
+	return NewManagerWithClient(path, NewClient())
+}
+
+type ToolClient interface {
+	ToolsList(ctx context.Context, cfg ServerConfig) (mcp.ToolsListResult, error)
+	ToolsCall(ctx context.Context, cfg ServerConfig, name string, args json.RawMessage) (mcp.ToolCallResult, error)
+}
+
+func NewManagerWithClient(path string, client ToolClient) (*Manager, error) {
 	manager := &Manager{
 		path:           path,
 		servers:        make(map[string]ServerConfig),
-		registeredTool: make(map[string]struct{}),
-		client:         NewClient(),
+		registeredTool: make(map[string]map[string]struct{}),
+		client:         client,
 	}
 	if err := manager.load(); err != nil {
 		return nil, err
@@ -83,18 +92,34 @@ func (manager *Manager) SyncRegistry(ctx context.Context, registry *mcp.Registry
 	for _, server := range manager.servers {
 		servers = append(servers, server)
 	}
+	knownServers := make(map[string]struct{}, len(manager.servers))
+	for name := range manager.servers {
+		knownServers[name] = struct{}{}
+	}
 	manager.mu.Unlock()
 
-	for toolName := range manager.registeredTool {
-		registry.Unregister(toolName)
+	manager.mu.Lock()
+	for name, tools := range manager.registeredTool {
+		if _, ok := knownServers[name]; ok {
+			continue
+		}
+		for toolName := range tools {
+			registry.Unregister(toolName)
+		}
+		delete(manager.registeredTool, name)
 	}
-	manager.registeredTool = make(map[string]struct{})
+	manager.mu.Unlock()
 
 	for _, server := range servers {
+		manager.mu.Lock()
+		prevTools := manager.registeredTool[server.Name]
+		manager.mu.Unlock()
+
 		tools, err := manager.client.ToolsList(ctx, server)
 		if err != nil {
 			continue
 		}
+		nextTools := make(map[string]struct{})
 		for _, tool := range tools.Tools {
 			if !toolAllowed(server, tool.Name) {
 				continue
@@ -115,13 +140,21 @@ func (manager *Manager) SyncRegistry(ctx context.Context, registry *mcp.Registry
 				Schema:  schema,
 				Handler: handler,
 			})
-			manager.registeredTool[registeredName] = struct{}{}
+			nextTools[registeredName] = struct{}{}
 		}
+		for toolName := range prevTools {
+			if _, ok := nextTools[toolName]; !ok {
+				registry.Unregister(toolName)
+			}
+		}
+		manager.mu.Lock()
+		manager.registeredTool[server.Name] = nextTools
+		manager.mu.Unlock()
 	}
 	return nil
 }
 
-func buildRemoteToolHandler(client *Client, server ServerConfig, name string) mcp.ToolHandler {
+func buildRemoteToolHandler(client ToolClient, server ServerConfig, name string) mcp.ToolHandler {
 	return func(ctx context.Context, params json.RawMessage) (any, *mcp.ErrorDetail) {
 		result, err := client.ToolsCall(ctx, server, name, params)
 		if err != nil {
