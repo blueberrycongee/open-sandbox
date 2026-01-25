@@ -29,6 +29,7 @@ func main() {
 	browserConfig.RemoteDebuggingPort = getenvInt("SANDBOX_CDP_PORT", browserConfig.RemoteDebuggingPort)
 	browserConfig.ExistingWebSocketDebug = os.Getenv("SANDBOX_BROWSER_CDP")
 	browserConfig.Headless = getenvBool("SANDBOX_BROWSER_HEADLESS", browserConfig.Headless)
+	browserConfig.DownloadDir = getenv("SANDBOX_BROWSER_DOWNLOAD_DIR", filepath.Join(config.WorkspacePath(), "Downloads"))
 
 	browserService := browser.NewService(browserConfig)
 	registry := handlers.NewMCPRegistry(browserService)

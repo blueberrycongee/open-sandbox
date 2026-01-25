@@ -40,6 +40,7 @@ func main() {
 		NavigateTimeout:        getenvDurationSeconds("SANDBOX_BROWSER_NAV_TIMEOUT_SEC", 15*time.Second),
 		ScreenshotTimeout:      getenvDurationSeconds("SANDBOX_BROWSER_SCREENSHOT_TIMEOUT_SEC", 15*time.Second),
 		Headless:               getenvBool("SANDBOX_BROWSER_HEADLESS", false),
+		DownloadDir:            getenv("SANDBOX_BROWSER_DOWNLOAD_DIR", filepath.Join(config.WorkspacePath(), "Downloads")),
 	})
 	handlers.RegisterBrowserRoutes(router, browserService)
 	handlers.RegisterVNCRoutes(router, browserService)

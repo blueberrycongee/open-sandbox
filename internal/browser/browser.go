@@ -14,7 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
 
@@ -30,6 +32,7 @@ type Config struct {
 	NavigateTimeout        time.Duration
 	ScreenshotTimeout      time.Duration
 	Headless               bool
+	DownloadDir            string
 }
 
 type Service struct {
@@ -42,10 +45,34 @@ type Service struct {
 	tabCancel   context.CancelFunc
 	cdpURL      string
 	cmd         *exec.Cmd
+
+	tabs      []tabHandle
+	activeTab int
+
+	downloadsMu sync.Mutex
+	downloads   map[string]*DownloadInfo
 }
 
 type versionInfo struct {
 	WebSocketDebuggerURL string `json:"webSocketDebuggerUrl"`
+}
+
+type tabHandle struct {
+	ctx      context.Context
+	cancel   context.CancelFunc
+	targetID target.ID
+}
+
+type DownloadInfo struct {
+	GUID          string    `json:"guid"`
+	URL           string    `json:"url"`
+	Filename      string    `json:"filename"`
+	Path          string    `json:"path"`
+	State         string    `json:"state"`
+	ReceivedBytes float64   `json:"received_bytes"`
+	TotalBytes    float64   `json:"total_bytes"`
+	StartedAt     time.Time `json:"started_at"`
+	FinishedAt    time.Time `json:"finished_at"`
 }
 
 func DefaultConfig() Config {
@@ -75,7 +102,10 @@ func NewService(config Config) *Service {
 	if config.ScreenshotTimeout == 0 {
 		config.ScreenshotTimeout = 15 * time.Second
 	}
-	return &Service{config: config}
+	return &Service{
+		config:    config,
+		downloads: make(map[string]*DownloadInfo),
+	}
 }
 
 func (service *Service) Start() error {
@@ -132,6 +162,168 @@ func (service *Service) Click(x, y float64) error {
 	})
 }
 
+func (service *Service) FormInputFill(selector string, value string) error {
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx,
+			chromedp.Focus(selector, chromedp.ByQuery),
+			chromedp.SetValue(selector, value, chromedp.ByQuery),
+		)
+	})
+}
+
+func (service *Service) ElementSelect(selector string, value string) error {
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.SetValue(selector, value, chromedp.ByQuery))
+	})
+}
+
+func (service *Service) Scroll(x float64, y float64) error {
+	expr := fmt.Sprintf("window.scrollBy(%f, %f)", x, y)
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.Evaluate(expr, nil))
+	})
+}
+
+func (service *Service) Evaluate(expression string) (any, error) {
+	var result any
+	if err := service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.Evaluate(expression, &result))
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (service *Service) PressKey(keys string) error {
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.KeyEvent(keys))
+	})
+}
+
+func (service *Service) NewTab(url string) (int, error) {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	if err := service.ensureStartedLocked(); err != nil {
+		return -1, err
+	}
+
+	handle, err := service.createTabLocked()
+	if err != nil {
+		return -1, err
+	}
+	service.tabs = append(service.tabs, handle)
+	service.activeTab = len(service.tabs) - 1
+	service.tabCtx = handle.ctx
+	service.tabCancel = handle.cancel
+
+	if url != "" {
+		if err := runWithTimeout(handle.ctx, service.config.NavigateTimeout, func(ctx context.Context) error {
+			_, _, _, err := page.Navigate(url).Do(ctx)
+			return err
+		}); err != nil {
+			return -1, err
+		}
+	}
+	return service.activeTab, nil
+}
+
+func (service *Service) SwitchTab(index int) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	if err := service.ensureStartedLocked(); err != nil {
+		return err
+	}
+	if index < 0 || index >= len(service.tabs) {
+		return errors.New("invalid tab index")
+	}
+	handle := service.tabs[index]
+	if handle.ctx == nil || handle.ctx.Err() != nil {
+		return errors.New("tab unavailable")
+	}
+	service.activeTab = index
+	service.tabCtx = handle.ctx
+	service.tabCancel = handle.cancel
+	return nil
+}
+
+func (service *Service) CloseTab(index int) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	if err := service.ensureStartedLocked(); err != nil {
+		return err
+	}
+	if index < 0 || index >= len(service.tabs) {
+		return errors.New("invalid tab index")
+	}
+	handle := service.tabs[index]
+	if handle.ctx != nil {
+		_ = target.CloseTarget(handle.targetID).Do(handle.ctx)
+		handle.cancel()
+	}
+	service.tabs = append(service.tabs[:index], service.tabs[index+1:]...)
+	if len(service.tabs) == 0 {
+		newHandle, err := service.createTabLocked()
+		if err != nil {
+			return err
+		}
+		service.tabs = append(service.tabs, newHandle)
+	}
+	if service.activeTab >= len(service.tabs) {
+		service.activeTab = len(service.tabs) - 1
+	}
+	active := service.tabs[service.activeTab]
+	service.tabCtx = active.ctx
+	service.tabCancel = active.cancel
+	return nil
+}
+
+type TabInfo struct {
+	Index int    `json:"index"`
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
+func (service *Service) TabList() ([]TabInfo, error) {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+
+	if err := service.ensureStartedLocked(); err != nil {
+		return nil, err
+	}
+
+	results := make([]TabInfo, 0, len(service.tabs))
+	for i, tab := range service.tabs {
+		if tab.ctx == nil || tab.ctx.Err() != nil {
+			results = append(results, TabInfo{Index: i})
+			continue
+		}
+		var title string
+		var url string
+		_ = runWithTimeout(tab.ctx, service.config.NavigateTimeout, func(ctx context.Context) error {
+			return chromedp.Run(ctx,
+				chromedp.Evaluate("document.title", &title),
+				chromedp.Evaluate("location.href", &url),
+			)
+		})
+		results = append(results, TabInfo{Index: i, Title: title, URL: url})
+	}
+	return results, nil
+}
+
+func (service *Service) DownloadList() []DownloadInfo {
+	service.downloadsMu.Lock()
+	defer service.downloadsMu.Unlock()
+
+	results := make([]DownloadInfo, 0, len(service.downloads))
+	for _, info := range service.downloads {
+		results = append(results, *info)
+	}
+	return results
+}
+
 func (service *Service) ensureStarted() error {
 	service.mu.Lock()
 	defer service.mu.Unlock()
@@ -164,9 +356,19 @@ func (service *Service) connectRemote(wsURL string) error {
 
 	service.allocCtx = allocCtx
 	service.allocCancel = allocCancel
-	service.tabCtx = tabCtx
-	service.tabCancel = tabCancel
 	service.cdpURL = wsURL
+	service.downloads = make(map[string]*DownloadInfo)
+
+	handle, err := service.setupTabLocked(tabCtx, tabCancel)
+	if err != nil {
+		tabCancel()
+		allocCancel()
+		return err
+	}
+	service.tabs = []tabHandle{handle}
+	service.activeTab = 0
+	service.tabCtx = handle.ctx
+	service.tabCancel = handle.cancel
 	return nil
 }
 
@@ -294,18 +496,97 @@ func (service *Service) isTabHealthyLocked() bool {
 }
 
 func (service *Service) resetLocked() {
-	if service.tabCancel != nil {
-		service.tabCancel()
-		service.tabCancel = nil
+	for _, tab := range service.tabs {
+		if tab.cancel != nil {
+			tab.cancel()
+		}
 	}
+	service.tabs = nil
+	service.activeTab = 0
+	service.tabCtx = nil
+	service.tabCancel = nil
 	if service.allocCancel != nil {
 		service.allocCancel()
 		service.allocCancel = nil
 	}
 	service.allocCtx = nil
-	service.tabCtx = nil
 	service.cdpURL = ""
 	service.stopChromeProcess()
+	service.downloads = make(map[string]*DownloadInfo)
+}
+
+func (service *Service) ensureDownloadDirLocked() (string, error) {
+	if service.config.DownloadDir == "" {
+		service.config.DownloadDir = filepath.Join(os.TempDir(), "open-sandbox-downloads")
+	}
+	if err := os.MkdirAll(service.config.DownloadDir, 0755); err != nil {
+		return "", err
+	}
+	return service.config.DownloadDir, nil
+}
+
+func (service *Service) setupTabLocked(ctx context.Context, cancel context.CancelFunc) (tabHandle, error) {
+	downloadDir, err := service.ensureDownloadDirLocked()
+	if err != nil {
+		return tabHandle{}, err
+	}
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch e := ev.(type) {
+		case *browser.EventDownloadWillBegin:
+			filename := e.SuggestedFilename
+			if filename == "" {
+				filename = e.GUID
+			}
+			info := &DownloadInfo{
+				GUID:      e.GUID,
+				URL:       e.URL,
+				Filename:  filename,
+				Path:      filepath.Join(downloadDir, filename),
+				State:     browser.DownloadProgressStateInProgress.String(),
+				StartedAt: time.Now(),
+			}
+			service.downloadsMu.Lock()
+			service.downloads[e.GUID] = info
+			service.downloadsMu.Unlock()
+		case *browser.EventDownloadProgress:
+			service.downloadsMu.Lock()
+			info := service.downloads[e.GUID]
+			if info == nil {
+				info = &DownloadInfo{GUID: e.GUID, StartedAt: time.Now()}
+				service.downloads[e.GUID] = info
+			}
+			info.TotalBytes = e.TotalBytes
+			info.ReceivedBytes = e.ReceivedBytes
+			info.State = e.State.String()
+			if e.State == browser.DownloadProgressStateCompleted || e.State == browser.DownloadProgressStateCanceled {
+				info.FinishedAt = time.Now()
+			}
+			service.downloadsMu.Unlock()
+		}
+	})
+
+	if err := chromedp.Run(ctx,
+		browser.SetDownloadBehavior(browser.SetDownloadBehaviorBehaviorAllow).
+			WithDownloadPath(downloadDir).
+			WithEventsEnabled(true),
+	); err != nil {
+		return tabHandle{}, err
+	}
+
+	targetID := target.ID("")
+	if c := chromedp.FromContext(ctx); c != nil && c.Target != nil {
+		targetID = c.Target.TargetID
+	}
+	return tabHandle{ctx: ctx, cancel: cancel, targetID: targetID}, nil
+}
+
+func (service *Service) createTabLocked() (tabHandle, error) {
+	tabCtx, tabCancel := chromedp.NewContext(service.allocCtx)
+	if err := chromedp.Run(tabCtx); err != nil {
+		tabCancel()
+		return tabHandle{}, err
+	}
+	return service.setupTabLocked(tabCtx, tabCancel)
 }
 
 func (service *Service) stopChromeProcess() {
