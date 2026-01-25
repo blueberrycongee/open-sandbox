@@ -16,6 +16,11 @@ type browserScreenshotParams struct {
 	Path string `json:"path"`
 }
 
+type browserClickParams struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 func BrowserNavigate(service *browser.Service) mcp.ToolHandler {
 	return func(ctx context.Context, params json.RawMessage) (any, *mcp.ErrorDetail) {
 		if service == nil {
@@ -52,5 +57,21 @@ func BrowserScreenshot(service *browser.Service) mcp.ToolHandler {
 			return nil, toolFailure(err.Error())
 		}
 		return map[string]any{"path": path}, nil
+	}
+}
+
+func BrowserClick(service *browser.Service) mcp.ToolHandler {
+	return func(ctx context.Context, params json.RawMessage) (any, *mcp.ErrorDetail) {
+		if service == nil {
+			return nil, toolFailure("browser service unavailable")
+		}
+		var payload browserClickParams
+		if err := json.Unmarshal(params, &payload); err != nil {
+			return nil, invalidParams("invalid params")
+		}
+		if err := service.Click(payload.X, payload.Y); err != nil {
+			return nil, toolFailure(err.Error())
+		}
+		return map[string]any{"clicked": true}, nil
 	}
 }

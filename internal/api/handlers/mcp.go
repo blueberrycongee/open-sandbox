@@ -43,6 +43,23 @@ func NewMCPRegistry(browserService *browser.Service) *mcp.Registry {
 			"required": []string{"path"},
 		},
 	}
+	browserClickSchema := mcp.ToolSchema{
+		Input: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"x": map[string]any{"type": "number"},
+				"y": map[string]any{"type": "number"},
+			},
+			"required": []string{"x", "y"},
+		},
+		Output: mcp.JSONSchema{
+			"type": "object",
+			"properties": map[string]any{
+				"clicked": map[string]any{"type": "boolean"},
+			},
+			"required": []string{"clicked"},
+		},
+	}
 	fileReadSchema := mcp.ToolSchema{
 		Input: mcp.JSONSchema{
 			"type": "object",
@@ -185,6 +202,16 @@ func NewMCPRegistry(browserService *browser.Service) *mcp.Registry {
 		},
 		Schema:  browserScreenshotSchema,
 		Handler: tools.BrowserScreenshot(browserService),
+	})
+	registry.Register(mcp.Tool{
+		Name:    "browser.click",
+		Version: "v1",
+		Permissions: mcp.PermissionMeta{
+			Allow: true,
+			Scope: "workspace",
+		},
+		Schema:  browserClickSchema,
+		Handler: tools.BrowserClick(browserService),
 	})
 	registry.Register(mcp.Tool{
 		Name:    "file.read",
