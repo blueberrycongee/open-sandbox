@@ -80,9 +80,17 @@ Example connector payload:
   "url": "https://example.com/mcp",
   "transport": "http",
   "authorization_token": "YOUR_TOKEN",
-  "tool_allow": ["menu.list", "order.create"]
+  "tool_allow": ["menu.list", "order.create"],
+  "tool_allow_glob": ["menu.*", "order.*"],
+  "tool_deny_glob": ["order.delete"]
 }
 ```
+
+Tool filtering rules:
+- `tool_allow` / `tool_allow_glob` are allowlists. When any allowlist is set, only allowed tools are exposed.
+- `tool_deny` / `tool_deny_glob` are denylists. They apply only when no allowlist is set.
+- Allow rules take precedence over deny rules.
+- Glob patterns use Go `path.Match` semantics (e.g. `menu.*`, `order.*`, `search_*`).
 
 MCP Integration
 ---------------
