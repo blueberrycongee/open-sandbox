@@ -13,7 +13,7 @@ Project Goals
 MVP Scope (Must-Have)
 ---------------------
 1) Unified HTTP entry API
-2) Headed browser with CDP (address, screenshot, actions)
+2) Headed browser with CDP (info, screenshot, actions, config)
 3) VNC takeover for visual control
 4) Shell API (non-interactive at minimum)
 5) File API (read/write/list/search/replace)
@@ -46,6 +46,12 @@ docker run --rm -p 8080:8080 -v <SANDBOX_WORKSPACE>:/workspace open-sandbox
 Ports
 -----
 - API + static pages: 8080 (default)
+
+Browser API Highlights
+----------------------
+- `GET /v1/browser/info` returns `user_agent`, `cdp_url`, `vnc_url`, and `viewport` (also includes `cdp_address` for compatibility).
+- `POST /v1/browser/actions` accepts unified action payloads (`MOVE_TO`, `CLICK`, `SCROLL`, `TYPING`, `WAIT`, etc.).
+- `POST /v1/browser/config` supports `resolution` to standardize viewport size.
 
 MCP Integration
 ---------------
@@ -94,6 +100,7 @@ Environment Variables
 - `SANDBOX_CDP_HOST` (default `127.0.0.1`)
 - `SANDBOX_CDP_PORT` (default `9222`)
 - `SANDBOX_BROWSER_HEADLESS` (default `false`)
+- `SANDBOX_BROWSER_DOWNLOAD_DIR` (default `<SANDBOX_WORKSPACE>/Downloads`)
 - `SANDBOX_BROWSER_NAV_TIMEOUT_SEC` (default `15`, navigation timeout)
 - `SANDBOX_BROWSER_SCREENSHOT_TIMEOUT_SEC` (default `15`, screenshot timeout)
 - `SANDBOX_JUPYTER_URL` (reverse proxy target, e.g. `http://localhost:8888`)
