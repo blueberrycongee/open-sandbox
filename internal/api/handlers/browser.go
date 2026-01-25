@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"open-sandbox/internal/api"
 	"open-sandbox/internal/browser"
@@ -62,6 +65,91 @@ type pressKeyRequest struct {
 	Keys string `json:"keys"`
 }
 
+type actionEnvelope struct {
+	ActionType string `json:"action_type"`
+}
+
+type moveToAction struct {
+	ActionType string  `json:"action_type"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+}
+
+type moveRelAction struct {
+	ActionType string  `json:"action_type"`
+	XOffset    float64 `json:"x_offset"`
+	YOffset    float64 `json:"y_offset"`
+}
+
+type clickAction struct {
+	ActionType string   `json:"action_type"`
+	X          *float64 `json:"x"`
+	Y          *float64 `json:"y"`
+	Button     string   `json:"button"`
+	NumClicks  int      `json:"num_clicks"`
+}
+
+type mouseButtonAction struct {
+	ActionType string `json:"action_type"`
+	Button     string `json:"button"`
+}
+
+type rightClickAction struct {
+	ActionType string   `json:"action_type"`
+	X          *float64 `json:"x"`
+	Y          *float64 `json:"y"`
+}
+
+type doubleClickAction struct {
+	ActionType string   `json:"action_type"`
+	X          *float64 `json:"x"`
+	Y          *float64 `json:"y"`
+}
+
+type dragToAction struct {
+	ActionType string  `json:"action_type"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+}
+
+type dragRelAction struct {
+	ActionType string  `json:"action_type"`
+	XOffset    float64 `json:"x_offset"`
+	YOffset    float64 `json:"y_offset"`
+}
+
+type scrollAction struct {
+	ActionType string `json:"action_type"`
+	DX         int    `json:"dx"`
+	DY         int    `json:"dy"`
+}
+
+type typingAction struct {
+	ActionType   string `json:"action_type"`
+	Text         string `json:"text"`
+	UseClipboard *bool  `json:"use_clipboard"`
+}
+
+type pressAction struct {
+	ActionType string `json:"action_type"`
+	Key        string `json:"key"`
+}
+
+type keyAction struct {
+	ActionType string `json:"action_type"`
+	Key        string `json:"key"`
+}
+
+type hotkeyAction struct {
+	ActionType string   `json:"action_type"`
+	Keys       []string `json:"keys"`
+}
+
+type waitAction struct {
+	ActionType string  `json:"action_type"`
+	Duration   float64 `json:"duration"`
+}
+
 func RegisterBrowserRoutes(router *api.Router, service *browser.Service) {
 	router.Handle(http.MethodGet, "/v1/browser/info", BrowserInfoHandler(service))
 	router.Handle(http.MethodPost, "/v1/browser/navigate", BrowserNavigateHandler(service))
@@ -77,6 +165,7 @@ func RegisterBrowserRoutes(router *api.Router, service *browser.Service) {
 	router.Handle(http.MethodGet, "/v1/browser/tab_list", BrowserTabListHandler(service))
 	router.Handle(http.MethodGet, "/v1/browser/get_download_list", BrowserDownloadListHandler(service))
 	router.Handle(http.MethodPost, "/v1/browser/press_key", BrowserPressKeyHandler(service))
+	router.Handle(http.MethodPost, "/v1/browser/actions", BrowserActionsHandler(service))
 }
 
 func BrowserInfoHandler(service *browser.Service) api.HandlerFunc {
@@ -368,5 +457,213 @@ func BrowserPressKeyHandler(service *browser.Service) api.HandlerFunc {
 			return api.NewAppError(api.CodeInternalError, "internal error", http.StatusInternalServerError)
 		}
 		return nil
+	}
+}
+
+func BrowserActionsHandler(service *browser.Service) api.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
+		}
+		body = bytes.TrimSpace(body)
+		if len(body) == 0 {
+			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
+		}
+
+		if body[0] == '[' {
+			var items []json.RawMessage
+			if err := json.Unmarshal(body, &items); err != nil {
+				return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
+			}
+			performed := make([]string, 0, len(items))
+			for _, item := range items {
+				actionName, err := executeAction(service, item)
+				if err != nil {
+					return api.NewAppError("action_failed", err.Error(), http.StatusInternalServerError)
+				}
+				performed = append(performed, actionName)
+			}
+			payload := map[string]any{
+				"status":            "success",
+				"action_performed":  "BATCH",
+				"actions_performed": performed,
+			}
+			if err := api.WriteJSON(w, http.StatusOK, types.Ok(payload)); err != nil {
+				return api.NewAppError(api.CodeInternalError, "internal error", http.StatusInternalServerError)
+			}
+			return nil
+		}
+
+		actionName, err := executeAction(service, body)
+		if err != nil {
+			return api.NewAppError("action_failed", err.Error(), http.StatusInternalServerError)
+		}
+		payload := map[string]any{
+			"status":           "success",
+			"action_performed": actionName,
+		}
+		if err := api.WriteJSON(w, http.StatusOK, types.Ok(payload)); err != nil {
+			return api.NewAppError(api.CodeInternalError, "internal error", http.StatusInternalServerError)
+		}
+		return nil
+	}
+}
+
+func executeAction(service *browser.Service, raw json.RawMessage) (string, error) {
+	var envelope actionEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return "", err
+	}
+	switch envelope.ActionType {
+	case "MOVE_TO":
+		var payload moveToAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.MoveTo(payload.X, payload.Y)
+	case "MOVE_REL":
+		var payload moveRelAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.MoveRel(payload.XOffset, payload.YOffset)
+	case "CLICK":
+		var payload clickAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		button := normalizeButton(payload.Button)
+		count := payload.NumClicks
+		x, y, ok := actionCoords(service, payload.X, payload.Y)
+		if !ok {
+			return "", errors.New("mouse position unknown")
+		}
+		return envelope.ActionType, service.ClickAt(x, y, button, count)
+	case "MOUSE_DOWN":
+		var payload mouseButtonAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.MouseDown(normalizeButton(payload.Button))
+	case "MOUSE_UP":
+		var payload mouseButtonAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.MouseUp(normalizeButton(payload.Button))
+	case "RIGHT_CLICK":
+		var payload rightClickAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		x, y, ok := actionCoords(service, payload.X, payload.Y)
+		if !ok {
+			return "", errors.New("mouse position unknown")
+		}
+		return envelope.ActionType, service.ClickAt(x, y, "right", 1)
+	case "DOUBLE_CLICK":
+		var payload doubleClickAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		x, y, ok := actionCoords(service, payload.X, payload.Y)
+		if !ok {
+			return "", errors.New("mouse position unknown")
+		}
+		return envelope.ActionType, service.ClickAt(x, y, "left", 2)
+	case "DRAG_TO":
+		var payload dragToAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.DragTo(payload.X, payload.Y)
+	case "DRAG_REL":
+		var payload dragRelAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.DragRel(payload.XOffset, payload.YOffset)
+	case "SCROLL":
+		var payload scrollAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		return envelope.ActionType, service.ScrollWheel(float64(payload.DX), float64(payload.DY))
+	case "TYPING":
+		var payload typingAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(payload.Text) == "" {
+			return "", errors.New("text is required")
+		}
+		return envelope.ActionType, service.PressKey(payload.Text)
+	case "PRESS":
+		var payload pressAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(payload.Key) == "" {
+			return "", errors.New("key is required")
+		}
+		return envelope.ActionType, service.PressSingleKey(payload.Key)
+	case "KEY_DOWN":
+		var payload keyAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(payload.Key) == "" {
+			return "", errors.New("key is required")
+		}
+		return envelope.ActionType, service.KeyDown(payload.Key)
+	case "KEY_UP":
+		var payload keyAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(payload.Key) == "" {
+			return "", errors.New("key is required")
+		}
+		return envelope.ActionType, service.KeyUp(payload.Key)
+	case "HOTKEY":
+		var payload hotkeyAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		if len(payload.Keys) == 0 {
+			return "", errors.New("keys are required")
+		}
+		return envelope.ActionType, service.Hotkey(payload.Keys)
+	case "WAIT":
+		var payload waitAction
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			return "", err
+		}
+		if payload.Duration <= 0 {
+			return "", errors.New("duration must be positive")
+		}
+		time.Sleep(time.Duration(payload.Duration * float64(time.Second)))
+		return envelope.ActionType, nil
+	default:
+		return "", errors.New("unsupported action type")
+	}
+}
+
+func actionCoords(service *browser.Service, x *float64, y *float64) (float64, float64, bool) {
+	if x != nil && y != nil {
+		return *x, *y, true
+	}
+	return service.MousePosition()
+}
+
+func normalizeButton(button string) string {
+	switch strings.ToLower(strings.TrimSpace(button)) {
+	case "right":
+		return "right"
+	case "middle":
+		return "middle"
+	default:
+		return "left"
 	}
 }

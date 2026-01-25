@@ -11,13 +11,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/browser"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 )
 
 var ErrBrowserUnavailable = errors.New("browser unavailable")
@@ -51,6 +54,11 @@ type Service struct {
 
 	downloadsMu sync.Mutex
 	downloads   map[string]*DownloadInfo
+
+	mouseMu   sync.Mutex
+	mouseX    float64
+	mouseY    float64
+	hasMouse  bool
 }
 
 type versionInfo struct {
@@ -162,6 +170,98 @@ func (service *Service) Click(x, y float64) error {
 	})
 }
 
+func (service *Service) MoveTo(x, y float64) error {
+	if err := service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.MouseEvent(input.MouseMoved, x, y, chromedp.ButtonNone))
+	}); err != nil {
+		return err
+	}
+	service.setMousePos(x, y)
+	return nil
+}
+
+func (service *Service) MoveRel(dx, dy float64) error {
+	x, y, ok := service.getMousePos()
+	if !ok {
+		return errors.New("mouse position unknown")
+	}
+	return service.MoveTo(x+dx, y+dy)
+}
+
+func (service *Service) ClickAt(x, y float64, button string, count int) error {
+	if count <= 0 {
+		count = 1
+	}
+	if err := service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.MouseClickXY(x, y, chromedp.Button(button), chromedp.ClickCount(count)))
+	}); err != nil {
+		return err
+	}
+	service.setMousePos(x, y)
+	return nil
+}
+
+func (service *Service) MouseDown(button string) error {
+	x, y, ok := service.getMousePos()
+	if !ok {
+		return errors.New("mouse position unknown")
+	}
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.MouseEvent(input.MousePressed, x, y, chromedp.Button(button), chromedp.ClickCount(1)))
+	})
+}
+
+func (service *Service) MouseUp(button string) error {
+	x, y, ok := service.getMousePos()
+	if !ok {
+		return errors.New("mouse position unknown")
+	}
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.MouseEvent(input.MouseReleased, x, y, chromedp.Button(button), chromedp.ClickCount(1)))
+	})
+}
+
+func (service *Service) DragTo(x, y float64) error {
+	startX, startY, ok := service.getMousePos()
+	if !ok {
+		return errors.New("mouse position unknown")
+	}
+	if err := service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx,
+			chromedp.MouseEvent(input.MousePressed, startX, startY, chromedp.ButtonLeft),
+			chromedp.MouseEvent(input.MouseMoved, x, y, chromedp.ButtonLeft),
+			chromedp.MouseEvent(input.MouseReleased, x, y, chromedp.ButtonLeft),
+		)
+	}); err != nil {
+		return err
+	}
+	service.setMousePos(x, y)
+	return nil
+}
+
+func (service *Service) DragRel(dx, dy float64) error {
+	x, y, ok := service.getMousePos()
+	if !ok {
+		return errors.New("mouse position unknown")
+	}
+	return service.DragTo(x+dx, y+dy)
+}
+
+func (service *Service) ScrollWheel(dx, dy float64) error {
+	x, y, ok := service.getMousePos()
+	if !ok {
+		x, y = 0, 0
+	}
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			return input.DispatchMouseEvent(input.MouseWheel, x, y).
+				WithDeltaX(dx).
+				WithDeltaY(dy).
+				Do(ctx)
+		}))
+	})
+}
+
 func (service *Service) FormInputFill(selector string, value string) error {
 	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
 		return chromedp.Run(ctx,
@@ -197,6 +297,51 @@ func (service *Service) Evaluate(expression string) (any, error) {
 func (service *Service) PressKey(keys string) error {
 	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
 		return chromedp.Run(ctx, chromedp.KeyEvent(keys))
+	})
+}
+
+func (service *Service) PressSingleKey(key string) error {
+	mapped := normalizeKey(key)
+	return service.PressKey(mapped)
+}
+
+func (service *Service) KeyDown(key string) error {
+	mapped := normalizeKey(key)
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			return input.DispatchKeyEvent(input.KeyDown).WithKey(mapped).Do(ctx)
+		}))
+	})
+}
+
+func (service *Service) KeyUp(key string) error {
+	mapped := normalizeKey(key)
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) error {
+			return input.DispatchKeyEvent(input.KeyUp).WithKey(mapped).Do(ctx)
+		}))
+	})
+}
+
+func (service *Service) Hotkey(keys []string) error {
+	if len(keys) == 0 {
+		return errors.New("keys are required")
+	}
+	return service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		actions := make([]chromedp.Action, 0, len(keys)*2)
+		for _, key := range keys {
+			k := normalizeKey(key)
+			actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+				return input.DispatchKeyEvent(input.KeyDown).WithKey(k).Do(ctx)
+			}))
+		}
+		for i := len(keys) - 1; i >= 0; i-- {
+			k := normalizeKey(keys[i])
+			actions = append(actions, chromedp.ActionFunc(func(ctx context.Context) error {
+				return input.DispatchKeyEvent(input.KeyUp).WithKey(k).Do(ctx)
+			}))
+		}
+		return chromedp.Run(ctx, actions...)
 	})
 }
 
@@ -513,6 +658,7 @@ func (service *Service) resetLocked() {
 	service.cdpURL = ""
 	service.stopChromeProcess()
 	service.downloads = make(map[string]*DownloadInfo)
+	service.hasMouse = false
 }
 
 func (service *Service) ensureDownloadDirLocked() (string, error) {
@@ -587,6 +733,60 @@ func (service *Service) createTabLocked() (tabHandle, error) {
 		return tabHandle{}, err
 	}
 	return service.setupTabLocked(tabCtx, tabCancel)
+}
+
+func (service *Service) MousePosition() (float64, float64, bool) {
+	return service.getMousePos()
+}
+
+func (service *Service) setMousePos(x, y float64) {
+	service.mouseMu.Lock()
+	service.mouseX = x
+	service.mouseY = y
+	service.hasMouse = true
+	service.mouseMu.Unlock()
+}
+
+func (service *Service) getMousePos() (float64, float64, bool) {
+	service.mouseMu.Lock()
+	defer service.mouseMu.Unlock()
+	if !service.hasMouse {
+		return 0, 0, false
+	}
+	return service.mouseX, service.mouseY, true
+}
+
+func normalizeKey(key string) string {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "enter":
+		return kb.Enter
+	case "tab":
+		return kb.Tab
+	case "backspace":
+		return kb.Backspace
+	case "escape", "esc":
+		return kb.Escape
+	case "delete", "del":
+		return kb.Delete
+	case "home":
+		return kb.Home
+	case "end":
+		return kb.End
+	case "pageup":
+		return kb.PageUp
+	case "pagedown":
+		return kb.PageDown
+	case "arrowup", "up":
+		return kb.ArrowUp
+	case "arrowdown", "down":
+		return kb.ArrowDown
+	case "arrowleft", "left":
+		return kb.ArrowLeft
+	case "arrowright", "right":
+		return kb.ArrowRight
+	default:
+		return key
+	}
 }
 
 func (service *Service) stopChromeProcess() {
