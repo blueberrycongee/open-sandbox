@@ -63,43 +63,43 @@ const vncHTML = `<!doctype html>
 </body>
 </html>`
 
-type clickRequest struct {
+type vncClickRequest struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
 }
 
-type keyboardRequest struct {
+type vncKeyboardRequest struct {
 	Keys string `json:"keys"`
 }
 
-type formInputFillRequest struct {
+type vncFormInputFillRequest struct {
 	Selector string `json:"selector"`
 	Value    string `json:"value"`
 }
 
-type elementSelectRequest struct {
+type vncElementSelectRequest struct {
 	Selector string `json:"selector"`
 	Value    string `json:"value"`
 }
 
-type scrollRequest struct {
+type vncScrollRequest struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
 }
 
-type evaluateRequest struct {
+type vncEvaluateRequest struct {
 	Expression string `json:"expression"`
 }
 
-type tabSwitchRequest struct {
+type vncTabSwitchRequest struct {
 	Index int `json:"index"`
 }
 
-type tabCloseRequest struct {
+type vncTabCloseRequest struct {
 	Index int `json:"index"`
 }
 
-type tabNewRequest struct {
+type vncTabNewRequest struct {
 	URL string `json:"url"`
 }
 
@@ -143,7 +143,7 @@ func VNCScreenHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCClickHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req clickRequest
+		var req vncClickRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -157,7 +157,7 @@ func VNCClickHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCKeyboardHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req keyboardRequest
+		var req vncKeyboardRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -176,7 +176,7 @@ func VNCKeyboardHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCFormInputFillHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req formInputFillRequest
+		var req vncFormInputFillRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -195,7 +195,7 @@ func VNCFormInputFillHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCElementSelectHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req elementSelectRequest
+		var req vncElementSelectRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -214,7 +214,7 @@ func VNCElementSelectHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCScrollHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req scrollRequest
+		var req vncScrollRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -230,7 +230,7 @@ func VNCScrollHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCEvaluateHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req evaluateRequest
+		var req vncEvaluateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -250,7 +250,7 @@ func VNCEvaluateHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCTabNewHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req tabNewRequest
+		var req vncTabNewRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -267,7 +267,7 @@ func VNCTabNewHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCTabSwitchHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req tabSwitchRequest
+		var req vncTabSwitchRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
@@ -296,7 +296,7 @@ func VNCTabListHandler(service *browser.Service) api.HandlerFunc {
 
 func VNCTabCloseHandler(service *browser.Service) api.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) *api.AppError {
-		var req tabCloseRequest
+		var req vncTabCloseRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			return api.NewAppError("bad_request", "invalid request body", http.StatusBadRequest)
 		}
