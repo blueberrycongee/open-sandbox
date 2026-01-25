@@ -478,6 +478,30 @@ func (service *Service) TabList() ([]TabInfo, error) {
 	return results, nil
 }
 
+func (service *Service) UserAgent() (string, error) {
+	var ua string
+	if err := service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx, chromedp.Evaluate("navigator.userAgent", &ua))
+	}); err != nil {
+		return "", err
+	}
+	return ua, nil
+}
+
+func (service *Service) Viewport() (Resolution, error) {
+	var width int
+	var height int
+	if err := service.runTabAction(service.config.NavigateTimeout, func(ctx context.Context) error {
+		return chromedp.Run(ctx,
+			chromedp.Evaluate("window.innerWidth", &width),
+			chromedp.Evaluate("window.innerHeight", &height),
+		)
+	}); err != nil {
+		return Resolution{}, err
+	}
+	return Resolution{Width: width, Height: height}, nil
+}
+
 func (service *Service) DownloadList() []DownloadInfo {
 	service.downloadsMu.Lock()
 	defer service.downloadsMu.Unlock()

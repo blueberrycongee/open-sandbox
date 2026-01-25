@@ -183,7 +183,20 @@ func BrowserInfoHandler(service *browser.Service) api.HandlerFunc {
 			return api.NewAppError("browser_unavailable", err.Error(), http.StatusServiceUnavailable)
 		}
 
-		payload := map[string]string{
+		userAgent, err := service.UserAgent()
+		if err != nil {
+			return api.NewAppError("browser_unavailable", err.Error(), http.StatusServiceUnavailable)
+		}
+		viewport, err := service.Viewport()
+		if err != nil {
+			return api.NewAppError("browser_unavailable", err.Error(), http.StatusServiceUnavailable)
+		}
+
+		payload := map[string]any{
+			"user_agent":  userAgent,
+			"cdp_url":     cdpAddress,
+			"vnc_url":     buildVNCURL(r),
+			"viewport":    map[string]any{"width": viewport.Width, "height": viewport.Height},
 			"cdp_address": cdpAddress,
 		}
 		if err := api.WriteJSON(w, http.StatusOK, types.Ok(payload)); err != nil {
@@ -191,6 +204,14 @@ func BrowserInfoHandler(service *browser.Service) api.HandlerFunc {
 		}
 		return nil
 	}
+}
+
+func buildVNCURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host + "/vnc/index.html"
 }
 
 func BrowserNavigateHandler(service *browser.Service) api.HandlerFunc {
