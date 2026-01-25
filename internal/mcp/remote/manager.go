@@ -115,13 +115,19 @@ func (manager *Manager) SyncRegistry(ctx context.Context, registry *mcp.Registry
 		prevTools := manager.registeredTool[server.Name]
 		manager.mu.Unlock()
 
+		filter := ToolFilter{
+			Allow:     server.ToolAllow,
+			Deny:      server.ToolDeny,
+			AllowGlob: server.ToolAllowGlob,
+			DenyGlob:  server.ToolDenyGlob,
+		}
 		tools, err := manager.client.ToolsList(ctx, server)
 		if err != nil {
 			continue
 		}
 		nextTools := make(map[string]struct{})
 		for _, tool := range tools.Tools {
-			if !toolAllowed(server, tool.Name) {
+			if !filter.Allowed(tool.Name) {
 				continue
 			}
 			registeredName := "ext." + server.Name + "." + tool.Name
@@ -163,23 +169,6 @@ func buildRemoteToolHandler(client ToolClient, server ServerConfig, name string)
 		}
 		return result, nil
 	}
-}
-
-func toolAllowed(server ServerConfig, name string) bool {
-	if len(server.ToolAllow) > 0 {
-		for _, allowed := range server.ToolAllow {
-			if allowed == name {
-				return true
-			}
-		}
-		return false
-	}
-	for _, denied := range server.ToolDeny {
-		if denied == name {
-			return false
-		}
-	}
-	return true
 }
 
 func (manager *Manager) load() error {
