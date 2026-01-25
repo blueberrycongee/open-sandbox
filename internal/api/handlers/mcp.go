@@ -162,7 +162,7 @@ func NewMCPRegistry(browserService *browser.Service, remoteManager *remote.Manag
 	}
 	browserTabListSchema := mcp.ToolSchema{
 		Input: mcp.JSONSchema{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]any{},
 		},
 		Output: mcp.JSONSchema{
@@ -191,7 +191,7 @@ func NewMCPRegistry(browserService *browser.Service, remoteManager *remote.Manag
 	}
 	browserDownloadListSchema := mcp.ToolSchema{
 		Input: mcp.JSONSchema{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]any{},
 		},
 		Output: mcp.JSONSchema{
@@ -585,6 +585,10 @@ func RegisterMCPRoutes(router *api.Router, browserService *browser.Service, remo
 
 	router.Handle("POST", "/mcp", func(w http.ResponseWriter, r *http.Request) *api.AppError {
 		server.ServeHTTP(w, r)
+		return nil
+	})
+	router.Handle("POST", "/mcp/stream", func(w http.ResponseWriter, r *http.Request) *api.AppError {
+		server.ServeStreamableHTTP(w, r)
 		return nil
 	})
 	router.Handle("GET", "/mcp/sse", func(w http.ResponseWriter, r *http.Request) *api.AppError {

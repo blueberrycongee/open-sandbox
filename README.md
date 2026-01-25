@@ -95,6 +95,7 @@ Tool filtering rules:
 MCP Integration
 ---------------
 - HTTP JSON-RPC: `POST /mcp`
+- Streamable HTTP (NDJSON): `POST /mcp/stream` (newline-delimited JSON-RPC requests/responses)
 - SSE JSON-RPC: `GET /mcp/sse?request=<urlencoded JSON>`
 
 Example JSON-RPC payload:

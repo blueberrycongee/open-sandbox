@@ -219,6 +219,53 @@ func (server *Server) ServeSSE(w http.ResponseWriter, r *http.Request) {
 	writeSSE(w, resp)
 }
 
+func (server *Server) ServeStreamableHTTP(w http.ResponseWriter, r *http.Request) {
+	if server.authErr != nil {
+		detail := NewErrorDetail(KindInternal, server.authErr.Error(), KindInternal)
+		writeNDJSONHeaders(w)
+		writeNDJSONMessage(w, NewErrorResponse(nil, ErrInternal, "internal error", detail))
+		return
+	}
+	if server.auth != nil {
+		if authErr := server.auth.ValidateRequest(r); authErr != nil {
+			writeNDJSONHeaders(w)
+			writeNDJSONMessage(w, NewErrorResponse(nil, ErrUnauthorized, "unauthorized", *authErr))
+			return
+		}
+	}
+
+	writeNDJSONHeaders(w)
+	if !isNDJSONRequest(r) {
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			detail := NewErrorDetail(KindInvalidRequest, "unable to read request", KindInvalidRequest)
+			writeNDJSONMessage(w, NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail))
+			return
+		}
+		resp, notify := server.handleRawPayload(r.Context(), payload)
+		if !notify {
+			writeNDJSONMessage(w, resp)
+		}
+		return
+	}
+
+	scanner := bufio.NewScanner(r.Body)
+	scanner.Buffer(make([]byte, 0, 1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		resp, notify := server.handleRawPayload(r.Context(), []byte(line))
+		if notify {
+			continue
+		}
+		if err := writeNDJSONMessage(w, resp); err != nil {
+			return
+		}
+	}
+}
+
 func (server *Server) handleHTTPRequest(r *http.Request) (Response, bool) {
 	if server.authErr != nil {
 		detail := NewErrorDetail(KindInternal, server.authErr.Error(), KindInternal)
@@ -267,6 +314,21 @@ func (server *Server) handleSSERequest(r *http.Request) (Response, bool) {
 	return resp, isNotification(req.ID)
 }
 
+func (server *Server) handleRawPayload(ctx context.Context, payload []byte) (Response, bool) {
+	var req Request
+	if err := json.Unmarshal(payload, &req); err != nil {
+		detail := NewErrorDetail(KindInvalidRequest, "invalid request", KindInvalidRequest)
+		return NewErrorResponse(nil, ErrInvalidRequest, "invalid request", detail), false
+	}
+	parsed, err := ParseRequest(payload)
+	if err != nil {
+		detail := NewErrorDetail(KindInvalidRequest, err.Error(), KindInvalidRequest)
+		return NewErrorResponse(req.ID, ErrInvalidRequest, "invalid request", detail), false
+	}
+	resp := server.HandleRequest(ctx, parsed)
+	return resp, isNotification(parsed.ID)
+}
+
 func isNotification(id json.RawMessage) bool {
 	if len(id) == 0 {
 		return true
@@ -291,6 +353,27 @@ func writeSSE(w http.ResponseWriter, resp Response) {
 	}
 }
 
+func writeNDJSONHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+}
+
+func writeNDJSONMessage(w io.Writer, resp Response) error {
+	payload, _ := json.Marshal(resp)
+	if _, err := w.Write(payload); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte("\n")); err != nil {
+		return err
+	}
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	return nil
+}
+
 func writeSSEMessage(w io.Writer, resp Response) {
 	payload, _ := json.Marshal(resp)
 	_, _ = w.Write([]byte("event: message\n"))
@@ -302,4 +385,9 @@ func writeSSEMessage(w io.Writer, resp Response) {
 func wantsEventStream(r *http.Request) bool {
 	accept := strings.ToLower(r.Header.Get("Accept"))
 	return strings.Contains(accept, "text/event-stream")
+}
+
+func isNDJSONRequest(r *http.Request) bool {
+	contentType := strings.ToLower(r.Header.Get("Content-Type"))
+	return strings.Contains(contentType, "ndjson") || strings.Contains(contentType, "jsonl")
 }
